@@ -14,3 +14,10 @@ frontend/dist/
 
 # Static uploads
 backend/static/images/
+
+# Secrets / seed data
+backend/seed_users.py
+
+# SSL certificates and keys
+frontend/*.crt
+frontend/*.key

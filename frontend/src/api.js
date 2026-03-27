@@ -13,6 +13,14 @@ async function request(path, options = {}) {
   return res.json()
 }
 
+// Auth
+export const login = (password) =>
+  request('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  })
+
 // Worlds
 export const getWorlds = () => request('/api/worlds')
 export const createWorld = (data) =>

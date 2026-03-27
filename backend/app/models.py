@@ -1,10 +1,25 @@
 import uuid
 from datetime import datetime, timezone
+from werkzeug.security import generate_password_hash, check_password_hash
 from . import db
 
 
 def utcnow():
     return datetime.now(timezone.utc)
+
+
+class User(db.Model):
+    __tablename__ = "users"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    password_hash = db.Column(db.String(256), nullable=False)
+
+    @staticmethod
+    def hash_password(password):
+        return generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 
 class World(db.Model):
