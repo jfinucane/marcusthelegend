@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from .. import db
-from ..models import World, Story
+from ..models import World, Story, ImageGenerationLog
 from ..image_service import generate_image, edit_image, save_uploaded_file
 
 stories_bp = Blueprint("stories", __name__, url_prefix="/api")
@@ -65,9 +65,17 @@ def generate_story_image(story_id):
     try:
         image_url = generate_image(story.description)
         story.image_path = image_url
+        log = ImageGenerationLog(entity_type="story", entity_id=story_id, action="generate",
+                                 prompt=story.description, result_image_path=image_url, success=True)
+        db.session.add(log)
         db.session.commit()
         return jsonify({"image_path": image_url})
     except Exception as e:
+        log = ImageGenerationLog(entity_type="story", entity_id=story_id, action="generate",
+                                 prompt=story.description, success=False,
+                                 reason_code="gemini_error", error_message=str(e))
+        db.session.add(log)
+        db.session.commit()
         return jsonify({"error": str(e)}), 500
 
 
@@ -75,6 +83,11 @@ def generate_story_image(story_id):
 def edit_story_image(story_id):
     story = db.get_or_404(Story, story_id)
     if not story.image_path:
+        log = ImageGenerationLog(entity_type="story", entity_id=story_id, action="edit",
+                                 prompt=None, success=False, reason_code="no_image",
+                                 error_message="Story has no image to edit")
+        db.session.add(log)
+        db.session.commit()
         return jsonify({"error": "Story has no image to edit"}), 400
     data = request.get_json()
     modification_text = (data.get("modification_text") or "").strip()
@@ -84,9 +97,17 @@ def edit_story_image(story_id):
         image_url = edit_image(story.image_path, modification_text)
         story.image_path = image_url
         story.description = f"{story.description or ''} ({modification_text})"
+        log = ImageGenerationLog(entity_type="story", entity_id=story_id, action="edit",
+                                 prompt=modification_text, result_image_path=image_url, success=True)
+        db.session.add(log)
         db.session.commit()
         return jsonify({"image_path": image_url, "description": story.description})
     except Exception as e:
+        log = ImageGenerationLog(entity_type="story", entity_id=story_id, action="edit",
+                                 prompt=modification_text, success=False,
+                                 reason_code="gemini_error", error_message=str(e))
+        db.session.add(log)
+        db.session.commit()
         return jsonify({"error": str(e)}), 500
 
 
@@ -101,7 +122,15 @@ def upload_story_image(story_id):
     try:
         image_url = save_uploaded_file(file)
         story.image_path = image_url
+        log = ImageGenerationLog(entity_type="story", entity_id=story_id, action="upload",
+                                 prompt=None, result_image_path=image_url, success=True)
+        db.session.add(log)
         db.session.commit()
         return jsonify({"image_path": image_url})
     except Exception as e:
+        log = ImageGenerationLog(entity_type="story", entity_id=story_id, action="upload",
+                                 prompt=None, success=False,
+                                 reason_code="upload_error", error_message=str(e))
+        db.session.add(log)
+        db.session.commit()
         return jsonify({"error": str(e)}), 500

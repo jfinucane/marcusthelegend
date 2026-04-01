@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getWorlds, createWorld, updateWorld, deleteWorld } from '../api'
 import WorldCard from '../components/WorldCard'
 import Modal from '../components/Modal'
@@ -73,6 +74,12 @@ export default function WorldsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [modal, setModal] = useState(null) // null | 'create' | { world }
+  const navigate = useNavigate()
+
+  function handleSignOut() {
+    localStorage.removeItem('marcus_auth')
+    navigate('/login')
+  }
 
   useEffect(() => {
     getWorlds()
@@ -106,12 +113,20 @@ export default function WorldsPage() {
           <h1 className="text-2xl font-bold text-indigo-400">StoryForge</h1>
           <p className="text-gray-500 text-sm">Your worlds</p>
         </div>
-        <button
-          onClick={() => setModal('create')}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          + Create World
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setModal('create')}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            + Create World
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm font-medium transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
       </header>
 
       <main className="px-6 py-8 max-w-6xl mx-auto">

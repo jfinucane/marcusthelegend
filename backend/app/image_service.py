@@ -34,15 +34,18 @@ def generate_image(prompt: str) -> str:
     response = model.generate_content(prompt)
 
     for part in response.candidates[0].content.parts:
-        if part.inline_data is not None:
+        if part.inline_data is not None and part.inline_data.data:
             image_bytes = part.inline_data.data
+            if isinstance(image_bytes, str):
+                image_bytes = base64.b64decode(image_bytes)
             mime_type = part.inline_data.mime_type
             ext = mime_type.split("/")[-1] if "/" in mime_type else "png"
             if ext == "jpeg":
                 ext = "jpg"
             return save_image_bytes(image_bytes, ext)
 
-    raise RuntimeError("Gemini returned no image in response")
+    finish_reason = getattr(response.candidates[0], "finish_reason", None) if response.candidates else None
+    raise RuntimeError(f"No image returned (finish_reason: {finish_reason})")
 
 
 def edit_image(image_url: str, modification_text: str) -> str:
@@ -73,7 +76,7 @@ def edit_image(image_url: str, modification_text: str) -> str:
     response = model.generate_content([image_part, modification_text])
 
     for part in response.candidates[0].content.parts:
-        if part.inline_data is not None:
+        if part.inline_data is not None and part.inline_data.data:
             raw = part.inline_data.data
             out_mime = part.inline_data.mime_type
             out_ext = out_mime.split("/")[-1] if "/" in out_mime else "png"
@@ -83,7 +86,8 @@ def edit_image(image_url: str, modification_text: str) -> str:
                 raw = base64.b64decode(raw)
             return save_image_bytes(raw, out_ext)
 
-    raise RuntimeError("Gemini returned no image in response")
+    finish_reason = getattr(response.candidates[0], "finish_reason", None) if response.candidates else None
+    raise RuntimeError(f"No image returned (finish_reason: {finish_reason})")
 
 
 def save_uploaded_file(file_storage) -> str:

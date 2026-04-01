@@ -89,6 +89,7 @@ class StoryItem(db.Model):
     type = db.Column(db.String(20), nullable=False)
     order_index = db.Column(db.Integer, default=0)
     description = db.Column(db.Text, nullable=True)
+    caption = db.Column(db.Text, nullable=True)
     image_path = db.Column(db.String(512), nullable=True)
     narrative_text = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
@@ -103,8 +104,24 @@ class StoryItem(db.Model):
             "type": self.type,
             "order_index": self.order_index,
             "description": self.description,
+            "caption": self.caption,
             "image_path": self.image_path,
             "narrative_text": self.narrative_text,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class ImageGenerationLog(db.Model):
+    __tablename__ = "image_generation_logs"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    entity_type = db.Column(db.String(20), nullable=False)   # 'world' | 'story' | 'item'
+    entity_id = db.Column(db.String(36), nullable=False)
+    action = db.Column(db.String(20), nullable=False)        # 'generate' | 'edit' | 'upload'
+    prompt = db.Column(db.Text, nullable=True)               # full prompt sent to Gemini; None for uploads
+    result_image_path = db.Column(db.String(512), nullable=True)
+    success = db.Column(db.Boolean, nullable=False)
+    error_message = db.Column(db.Text, nullable=True)
+    reason_code = db.Column(db.String(50), nullable=True)    # short failure code, e.g. 'gemini_error' | 'no_image_returned' | 'item_not_found' | 'invalid_type'
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow)

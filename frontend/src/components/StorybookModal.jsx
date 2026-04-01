@@ -59,10 +59,8 @@ export default function StorybookModal({ story, onClose }) {
                   No image generated yet
                 </div>
               )}
-              {item.description && (
-                <p className="text-gray-400 text-sm text-center italic">
-                  {item.description.replace(/\s*\([^)]*\)/g, '').trim()}
-                </p>
+              {item.caption && (
+                <p className="text-gray-400 text-sm text-center italic">{item.caption}</p>
               )}
             </div>
           ) : (

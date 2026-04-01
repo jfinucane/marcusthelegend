@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from .. import db
-from ..models import Story, StoryItem
+from ..models import Story, StoryItem, World, ImageGenerationLog
 from ..image_service import generate_image, edit_image, save_uploaded_file
 
 items_bp = Blueprint("items", __name__, url_prefix="/api")
@@ -49,6 +49,8 @@ def update_item(item_id):
     data = request.get_json()
     if "description" in data:
         item.description = data["description"]
+    if "caption" in data:
+        item.caption = data["caption"]
     if "narrative_text" in data:
         item.narrative_text = data["narrative_text"]
     if "order_index" in data:
@@ -69,15 +71,33 @@ def delete_item(item_id):
 def generate_item_image(item_id):
     item = db.get_or_404(StoryItem, item_id)
     if item.type != "image_scene":
+        log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="generate",
+                                 prompt=None, success=False, reason_code="invalid_type",
+                                 error_message="Only image_scene items support image generation")
+        db.session.add(log)
+        db.session.commit()
         return jsonify({"error": "Only image_scene items support image generation"}), 400
     if not item.description:
+        log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="generate",
+                                 prompt=None, success=False, reason_code="no_description",
+                                 error_message="Item has no description to use as prompt")
+        db.session.add(log)
+        db.session.commit()
         return jsonify({"error": "Item has no description to use as prompt"}), 400
     try:
         image_url = generate_image(item.description)
         item.image_path = image_url
+        log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="generate",
+                                 prompt=item.description, result_image_path=image_url, success=True)
+        db.session.add(log)
         db.session.commit()
         return jsonify({"image_path": image_url})
     except Exception as e:
+        log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="generate",
+                                 prompt=item.description, success=False,
+                                 reason_code="gemini_error", error_message=str(e))
+        db.session.add(log)
+        db.session.commit()
         return jsonify({"error": str(e)}), 500
 
 
@@ -85,21 +105,46 @@ def generate_item_image(item_id):
 def edit_item_image(item_id):
     item = db.get_or_404(StoryItem, item_id)
     if item.type != "image_scene":
+        log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="edit",
+                                 prompt=None, success=False, reason_code="invalid_type",
+                                 error_message="Only image_scene items support image editing")
+        db.session.add(log)
+        db.session.commit()
         return jsonify({"error": "Only image_scene items support image editing"}), 400
     if not item.image_path:
+        log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="edit",
+                                 prompt=None, success=False, reason_code="no_image",
+                                 error_message="Item has no image to edit")
+        db.session.add(log)
+        db.session.commit()
         return jsonify({"error": "Item has no image to edit"}), 400
     data = request.get_json()
     modification_text = (data.get("modification_text") or "").strip()
     if not modification_text:
         return jsonify({"error": "modification_text is required"}), 400
+    story = db.session.get(Story, item.story_id)
+    world = db.session.get(World, story.world_id)
+    enriched_prompt = (
+        f"World — {world.title}: {world.description}\n\n"
+        f"Story — {story.title}: {story.description}\n\n"
+        f"Modification: {modification_text}"
+    )
     try:
-        image_url = edit_image(item.image_path, modification_text)
+        image_url = edit_image(item.image_path, enriched_prompt)
         item.image_path = image_url
         current_desc = item.description or ""
         item.description = f"{current_desc} ({modification_text})"
+        log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="edit",
+                                 prompt=enriched_prompt, result_image_path=image_url, success=True)
+        db.session.add(log)
         db.session.commit()
         return jsonify({"image_path": image_url, "description": item.description})
     except Exception as e:
+        log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="edit",
+                                 prompt=enriched_prompt, success=False,
+                                 reason_code="gemini_error", error_message=str(e))
+        db.session.add(log)
+        db.session.commit()
         return jsonify({"error": str(e)}), 500
 
 
@@ -114,9 +159,17 @@ def upload_item_image(item_id):
     try:
         image_url = save_uploaded_file(file)
         item.image_path = image_url
+        log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="upload",
+                                 prompt=None, result_image_path=image_url, success=True)
+        db.session.add(log)
         db.session.commit()
         return jsonify({"image_path": image_url})
     except Exception as e:
+        log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="upload",
+                                 prompt=None, success=False,
+                                 reason_code="upload_error", error_message=str(e))
+        db.session.add(log)
+        db.session.commit()
         return jsonify({"error": str(e)}), 500
 
 
