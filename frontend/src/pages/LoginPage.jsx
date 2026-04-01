@@ -31,7 +31,6 @@ export default function LoginPage() {
     >
       <div className="absolute inset-0 bg-black/50" />
       <div className="relative z-10 bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-2xl p-10 w-full max-w-sm shadow-2xl flex flex-col items-center gap-6">
-        <h1 className="text-3xl font-bold text-white tracking-wide">Marcus the Legend</h1>
         <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
           <input
             type="password"

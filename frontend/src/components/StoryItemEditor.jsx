@@ -7,6 +7,7 @@ export default function StoryItemEditor({ item, index, onUpdate, onDelete }) {
   const [text, setText] = useState(
     item.type === 'narrative' ? (item.narrative_text || '') : (item.description || '')
   )
+  const [caption, setCaption] = useState(item.caption || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
@@ -24,6 +25,20 @@ export default function StoryItemEditor({ item, index, onUpdate, onDelete }) {
       setSaving(false)
     }
   }, [item, text, onUpdate])
+
+  const handleCaptionBlur = useCallback(async () => {
+    if (caption === (item.caption || '')) return
+    setSaving(true)
+    setError(null)
+    try {
+      const updated = await updateItem(item.id, { caption })
+      onUpdate(updated)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }, [item, caption, onUpdate])
 
   async function handleDelete() {
     if (!confirm('Delete this item?')) return
@@ -94,6 +109,14 @@ export default function StoryItemEditor({ item, index, onUpdate, onDelete }) {
                   setText(res.description || '')
                   onUpdate({ ...item, image_path: res.image_path, description: res.description })
                 }}
+              />
+              <textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                onBlur={handleCaptionBlur}
+                placeholder="Caption (optional)..."
+                rows={2}
+                className="w-full bg-gray-900 text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600"
               />
             </>
           ) : (
