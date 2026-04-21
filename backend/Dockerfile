@@ -9,4 +9,4 @@ COPY . .
 
 RUN mkdir -p static/images
 
-CMD ["python", "run.py"]
+CMD ["bash", "start.sh"]
