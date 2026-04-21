@@ -13,7 +13,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || ''
  *   onEdit        – optional async fn(modificationText) → { image_path, description }
  *   onEditChange  – optional fn(result) called after a successful edit
  */
-export default function ImageBlock({ imagePath, onGenerate, onUpload, onImageChange, onEdit, onEditChange }) {
+export default function ImageBlock({ imagePath, onGenerate, onUpload, onImageChange, onEdit, onEditChange, extraButtons }) {
   const [generating, setGenerating] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [editMode, setEditMode] = useState(false)
@@ -103,6 +103,7 @@ export default function ImageBlock({ imagePath, onGenerate, onUpload, onImageCha
             >
               {uploading ? <Spinner label="Uploading..." /> : 'Upload Image'}
             </button>
+            {extraButtons}
           </div>
 
           {editMode && (
@@ -177,6 +178,7 @@ export default function ImageBlock({ imagePath, onGenerate, onUpload, onImageCha
                 Upload Image
               </button>
             )}
+            {extraButtons}
             <input
               ref={fileRef}
               type="file"

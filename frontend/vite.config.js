@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    hmr: { host: 'spark-b0aa.taileb1e78.ts.net' },
+    hmr: { host: 'spark-b0aa.taileb1e78.ts.net', clientPort: 443 },
     headers: {
       'Access-Control-Allow-Private-Network': 'true',
     },
@@ -17,8 +17,12 @@ export default defineConfig({
       "spark-b0aa.taileb1e78.ts.net"
     ],  
     proxy: {
-      '/api': 'http://localhost:5000',
-      '/static': 'http://localhost:5000',
+      '/api': {
+        target: 'http://host.docker.internal:5000',
+        proxyTimeout: 180000,
+        timeout: 180000,
+      },
+      '/static': 'http://host.docker.internal:5000',
     },
   },
 })

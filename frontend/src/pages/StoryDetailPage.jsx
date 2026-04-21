@@ -13,6 +13,10 @@ import {
 import ImageBlock from '../components/ImageBlock'
 import StoryItemEditor from '../components/StoryItemEditor'
 import Spinner from '../components/Spinner'
+import Modal from '../components/Modal'
+import MontageModal from '../components/MontageModal'
+
+const VOICES = ['john', 'sofia', 'aria', 'jason', 'leo']
 
 function InsertDivider({ onAdd, disabled }) {
   const [open, setOpen] = useState(false)
@@ -74,6 +78,8 @@ export default function StoryDetailPage() {
   const [savingStory, setSavingStory] = useState(false)
   const [addingItem, setAddingItem] = useState(false)
   const [newItemId, setNewItemId] = useState(null)
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false)
+  const [showMontage, setShowMontage] = useState(false)
   const itemRefs = useRef({})
 
   useEffect(() => {
@@ -103,6 +109,12 @@ export default function StoryDetailPage() {
     } finally {
       setSavingStory(false)
     }
+  }
+
+  async function handleVoiceSelect(voice) {
+    const updated = await updateStory(id, { voice })
+    setStory(updated)
+    setVoiceModalOpen(false)
   }
 
   function handleStoryImageChange(imagePath) {
@@ -187,7 +199,7 @@ export default function StoryDetailPage() {
           onClick={() => navigate(`/worlds/${story?.world_id}`)}
           className="text-gray-400 hover:text-gray-200 text-sm"
         >
-          ← World
+          ← Stories
         </button>
       </header>
 
@@ -245,6 +257,23 @@ export default function StoryDetailPage() {
             onImageChange={handleStoryImageChange}
             onEdit={(modText) => editStoryImage(id, modText)}
             onEditChange={(res) => setStory((s) => ({ ...s, image_path: res.image_path, description: res.description }))}
+            extraButtons={
+              <>
+                <button
+                  onClick={() => setVoiceModalOpen(true)}
+                  className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+                  title={`Voice: ${story?.voice || 'john'}`}
+                >
+                  Edit Voice
+                </button>
+                <button
+                  onClick={() => setShowMontage(true)}
+                  className="px-3 py-1.5 text-sm bg-violet-700 hover:bg-violet-600 rounded-lg text-white transition-colors"
+                >
+                  Watch
+                </button>
+              </>
+            }
           />
         </div>
 
@@ -291,6 +320,7 @@ export default function StoryDetailPage() {
                         <StoryItemEditor
                           item={item}
                           index={index}
+                          storyVoice={story?.voice || 'john'}
                           onUpdate={handleItemUpdate}
                           onDelete={handleItemDelete}
                         />
@@ -308,6 +338,30 @@ export default function StoryDetailPage() {
           )}
         </div>
       </main>
+
+      {showMontage && story && (
+        <MontageModal story={story} onClose={() => setShowMontage(false)} />
+      )}
+
+      {voiceModalOpen && (
+        <Modal title="Story Voice" onClose={() => setVoiceModalOpen(false)}>
+          <div className="space-y-2">
+            {VOICES.map(v => (
+              <label key={v} className="flex items-center gap-3 cursor-pointer group">
+                <input
+                  type="radio"
+                  name="story-detail-voice"
+                  value={v}
+                  checked={(story?.voice || 'john') === v}
+                  onChange={() => handleVoiceSelect(v)}
+                  className="accent-violet-500"
+                />
+                <span className="text-gray-200 group-hover:text-white text-sm capitalize">{v}</span>
+              </label>
+            ))}
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

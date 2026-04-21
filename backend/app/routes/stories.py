@@ -47,6 +47,8 @@ def update_story(story_id):
         story.description = data["description"]
     if "order_index" in data:
         story.order_index = data["order_index"]
+    if "voice" in data:
+        story.voice = data["voice"]
     db.session.commit()
     return jsonify(story.to_dict())
 
