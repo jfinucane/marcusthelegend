@@ -1,3 +1,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@keyframes ken-burns {
+  from { transform: scale(1.0) translate(0, 0); }
+  to   { transform: scale(1.18) translate(-3%, -2%); }
+}
+
+.ken-burns {
+  animation: ken-burns ease-in-out forwards;
+}

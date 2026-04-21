@@ -47,14 +47,9 @@ def create_item(story_id):
 def update_item(item_id):
     item = db.get_or_404(StoryItem, item_id)
     data = request.get_json()
-    if "description" in data:
-        item.description = data["description"]
-    if "caption" in data:
-        item.caption = data["caption"]
-    if "narrative_text" in data:
-        item.narrative_text = data["narrative_text"]
-    if "order_index" in data:
-        item.order_index = data["order_index"]
+    for field in ("description", "caption", "narrative_text", "adjusted_text", "voice", "language", "order_index"):
+        if field in data:
+            setattr(item, field, data[field])
     db.session.commit()
     return jsonify(item.to_dict())
 

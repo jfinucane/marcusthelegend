@@ -57,6 +57,7 @@ class Story(db.Model):
     description = db.Column(db.Text, nullable=False)
     image_path = db.Column(db.String(512), nullable=True)
     order_index = db.Column(db.Integer, default=0)
+    voice = db.Column(db.String(64), nullable=True, default='john')
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -71,6 +72,7 @@ class Story(db.Model):
             "description": self.description,
             "image_path": self.image_path,
             "order_index": self.order_index,
+            "voice": self.voice or 'john',
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -92,6 +94,9 @@ class StoryItem(db.Model):
     caption = db.Column(db.Text, nullable=True)
     image_path = db.Column(db.String(512), nullable=True)
     narrative_text = db.Column(db.Text, nullable=True)
+    adjusted_text = db.Column(db.Text, nullable=True)
+    voice = db.Column(db.String(64), nullable=True)
+    language = db.Column(db.String(16), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -107,6 +112,9 @@ class StoryItem(db.Model):
             "caption": self.caption,
             "image_path": self.image_path,
             "narrative_text": self.narrative_text,
+            "adjusted_text": self.adjusted_text,
+            "voice": self.voice,
+            "language": self.language,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
