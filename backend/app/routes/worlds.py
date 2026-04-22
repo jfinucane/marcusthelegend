@@ -52,17 +52,18 @@ def delete_world(world_id):
 @worlds_bp.route("/worlds/<world_id>/generate-image", methods=["POST"])
 def generate_world_image(world_id):
     world = db.get_or_404(World, world_id)
+    prompt = f"World Title: {world.title} World Description: {world.description}"
     try:
-        image_url = generate_image(world.description)
+        image_url = generate_image(prompt)
         world.image_path = image_url
         log = ImageGenerationLog(entity_type="world", entity_id=world_id, action="generate",
-                                 prompt=world.description, result_image_path=image_url, success=True)
+                                 prompt=prompt, result_image_path=image_url, success=True)
         db.session.add(log)
         db.session.commit()
         return jsonify({"image_path": image_url})
     except Exception as e:
         log = ImageGenerationLog(entity_type="world", entity_id=world_id, action="generate",
-                                 prompt=world.description, success=False,
+                                 prompt=prompt, success=False,
                                  reason_code="gemini_error", error_message=str(e))
         db.session.add(log)
         db.session.commit()
