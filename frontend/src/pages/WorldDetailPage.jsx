@@ -8,6 +8,7 @@ import {
   editWorldImage,
   uploadWorldImage,
   createStory,
+  generateStoryImage,
   updateStory,
   deleteStory,
 } from '../api'
@@ -19,8 +20,11 @@ import Spinner from '../components/Spinner'
 function StoryForm({ initial = {}, onSave, onCancel }) {
   const [title, setTitle] = useState(initial.title || '')
   const [description, setDescription] = useState(initial.description || '')
-  const [saving, setSaving] = useState(false)
+  const [phase, setPhase] = useState('idle') // 'idle' | 'saving' | 'generating'
   const [error, setError] = useState(null)
+  const [imageError, setImageError] = useState(false)
+
+  const busy = phase !== 'idle'
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -28,13 +32,19 @@ function StoryForm({ initial = {}, onSave, onCancel }) {
       setError('Title and description are required.')
       return
     }
-    setSaving(true)
+    setPhase('saving')
     setError(null)
+    setImageError(false)
+    let inGenerating = false
     try {
-      await onSave({ title: title.trim(), description: description.trim() })
+      await onSave(
+        { title: title.trim(), description: description.trim() },
+        () => { inGenerating = true; setPhase('generating') }
+      )
     } catch (err) {
       setError(err.message)
-      setSaving(false)
+      setImageError(inGenerating)
+      setPhase('idle')
     }
   }
 
@@ -45,7 +55,8 @@ function StoryForm({ initial = {}, onSave, onCancel }) {
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full bg-gray-900 text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+          disabled={busy}
+          className="w-full bg-gray-900 text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
           placeholder="A New Story"
         />
       </div>
@@ -54,20 +65,32 @@ function StoryForm({ initial = {}, onSave, onCancel }) {
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          disabled={busy}
           rows={4}
-          className="w-full bg-gray-900 text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder-gray-600"
+          className="w-full bg-gray-900 text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder-gray-600 disabled:opacity-50"
           placeholder="Describe your story..."
         />
       </div>
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-      <div className="flex justify-end gap-3">
-        <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg">
-          Cancel
-        </button>
-        <button type="submit" disabled={saving} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm rounded-lg">
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-      </div>
+      {error && (
+        <div>
+          <p className="text-red-400 text-sm">{error}</p>
+          {imageError && <p className="text-gray-400 text-sm mt-1">Try again and/or change the prompt.</p>}
+        </div>
+      )}
+      {phase === 'generating' ? (
+        <div className="flex justify-center py-2">
+          <Spinner label="Generating image..." />
+        </div>
+      ) : (
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={onCancel} disabled={busy} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm rounded-lg">
+            Cancel
+          </button>
+          <button type="submit" disabled={busy} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm rounded-lg">
+            {phase === 'saving' ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      )}
     </form>
   )
 }
@@ -108,10 +131,12 @@ export default function WorldDetailPage() {
     setWorld((w) => ({ ...w, image_path: imagePath }))
   }
 
-  async function handleCreateStory(data) {
+  async function handleCreateStory(data, onGenerating) {
     const story = await createStory(id, data)
     setStories((prev) => [...prev, story])
-    setModal(null)
+    onGenerating()
+    await generateStoryImage(story.id)
+    navigate(`/stories/${story.id}`)
   }
 
   async function handleEditStory(data) {
