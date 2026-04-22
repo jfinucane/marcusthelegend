@@ -84,18 +84,22 @@ def edit_world_image(world_id):
     modification_text = (data.get("modification_text") or "").strip()
     if not modification_text:
         return jsonify({"error": "modification_text is required"}), 400
+    prompt = (
+        f"World Title: {world.title} World Description: {world.description} "
+        f"Modification: {modification_text}"
+    )
     try:
-        image_url = edit_image(world.image_path, modification_text)
+        image_url = edit_image(world.image_path, prompt)
         world.image_path = image_url
         world.description = f"{world.description or ''} ({modification_text})"
         log = ImageGenerationLog(entity_type="world", entity_id=world_id, action="edit",
-                                 prompt=modification_text, result_image_path=image_url, success=True)
+                                 prompt=prompt, result_image_path=image_url, success=True)
         db.session.add(log)
         db.session.commit()
         return jsonify({"image_path": image_url, "description": world.description})
     except Exception as e:
         log = ImageGenerationLog(entity_type="world", entity_id=world_id, action="edit",
-                                 prompt=modification_text, success=False,
+                                 prompt=prompt, success=False,
                                  reason_code="gemini_error", error_message=str(e))
         db.session.add(log)
         db.session.commit()

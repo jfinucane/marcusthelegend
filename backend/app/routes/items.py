@@ -79,17 +79,25 @@ def generate_item_image(item_id):
         db.session.add(log)
         db.session.commit()
         return jsonify({"error": "Item has no description to use as prompt"}), 400
+    story = db.session.get(Story, item.story_id)
+    world = db.session.get(World, story.world_id)
+    caption_part = f", Caption: {item.caption}" if item.caption else ""
+    prompt = (
+        f"Context: [World Title: {world.title} World Description: {world.description} "
+        f"Story Title: {story.title} Story Description: {story.description}] "
+        f"Draw scene: Description: {item.description}{caption_part}"
+    )
     try:
-        image_url = generate_image(item.description)
+        image_url = generate_image(prompt)
         item.image_path = image_url
         log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="generate",
-                                 prompt=item.description, result_image_path=image_url, success=True)
+                                 prompt=prompt, result_image_path=image_url, success=True)
         db.session.add(log)
         db.session.commit()
         return jsonify({"image_path": image_url})
     except Exception as e:
         log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="generate",
-                                 prompt=item.description, success=False,
+                                 prompt=prompt, success=False,
                                  reason_code="gemini_error", error_message=str(e))
         db.session.add(log)
         db.session.commit()
@@ -119,24 +127,26 @@ def edit_item_image(item_id):
         return jsonify({"error": "modification_text is required"}), 400
     story = db.session.get(Story, item.story_id)
     world = db.session.get(World, story.world_id)
-    enriched_prompt = (
-        f"World — {world.title}: {world.description}\n\n"
-        f"Story — {story.title}: {story.description}\n\n"
+    caption_part = f", Caption: {item.caption}" if item.caption else ""
+    prompt = (
+        f"Context: [World Title: {world.title} World Description: {world.description} "
+        f"Story Title: {story.title} Story Description: {story.description}] "
+        f"Draw scene: Description: {item.description}{caption_part} "
         f"Modification: {modification_text}"
     )
     try:
-        image_url = edit_image(item.image_path, enriched_prompt)
+        image_url = edit_image(item.image_path, prompt)
         item.image_path = image_url
         current_desc = item.description or ""
         item.description = f"{current_desc} ({modification_text})"
         log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="edit",
-                                 prompt=enriched_prompt, result_image_path=image_url, success=True)
+                                 prompt=prompt, result_image_path=image_url, success=True)
         db.session.add(log)
         db.session.commit()
         return jsonify({"image_path": image_url, "description": item.description})
     except Exception as e:
         log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="edit",
-                                 prompt=enriched_prompt, success=False,
+                                 prompt=prompt, success=False,
                                  reason_code="gemini_error", error_message=str(e))
         db.session.add(log)
         db.session.commit()
