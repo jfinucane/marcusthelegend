@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getWorlds, createWorld, updateWorld, deleteWorld } from '../api'
+import { getWorlds, createWorld, updateWorld, deleteWorld, generateWorldImage } from '../api'
 import WorldCard from '../components/WorldCard'
 import Modal from '../components/Modal'
 import Spinner from '../components/Spinner'
 
-function WorldForm({ initial = {}, onSave, onCancel }) {
+function WorldForm({ initial = {}, onSave, onCancel, isCreate = false }) {
   const [title, setTitle] = useState(initial.title || '')
   const [description, setDescription] = useState(initial.description || '')
-  const [saving, setSaving] = useState(false)
+  const [phase, setPhase] = useState('idle') // 'idle' | 'saving' | 'generating'
   const [error, setError] = useState(null)
+  const [imageError, setImageError] = useState(false)
+
+  const busy = phase !== 'idle'
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -17,13 +20,19 @@ function WorldForm({ initial = {}, onSave, onCancel }) {
       setError('Title and description are required.')
       return
     }
-    setSaving(true)
+    setPhase('saving')
     setError(null)
+    setImageError(false)
+    let inGenerating = false
     try {
-      await onSave({ title: title.trim(), description: description.trim() })
+      await onSave(
+        { title: title.trim(), description: description.trim() },
+        () => { inGenerating = true; setPhase('generating') }
+      )
     } catch (err) {
       setError(err.message)
-      setSaving(false)
+      setImageError(inGenerating)
+      setPhase('idle')
     }
   }
 
@@ -34,7 +43,8 @@ function WorldForm({ initial = {}, onSave, onCancel }) {
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full bg-gray-900 text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          disabled={busy}
+          className="w-full bg-gray-900 text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
           placeholder="A New World"
         />
       </div>
@@ -43,28 +53,41 @@ function WorldForm({ initial = {}, onSave, onCancel }) {
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          disabled={busy}
           rows={4}
-          className="w-full bg-gray-900 text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600"
+          className="w-full bg-gray-900 text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600 disabled:opacity-50"
           placeholder="Describe your world..."
         />
       </div>
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-      <div className="flex justify-end gap-3">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm rounded-lg"
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-      </div>
+      {error && (
+        <div>
+          <p className="text-red-400 text-sm">{error}</p>
+          {imageError && <p className="text-gray-400 text-sm mt-1">Try again and/or change the prompt.</p>}
+        </div>
+      )}
+      {phase === 'generating' ? (
+        <div className="flex justify-center py-2">
+          <Spinner label="Generating image..." />
+        </div>
+      ) : (
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={busy}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm rounded-lg"
+          >
+            {phase === 'saving' ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      )}
     </form>
   )
 }
@@ -88,10 +111,12 @@ export default function WorldsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  async function handleCreate(data) {
+  async function handleCreate(data, onGenerating) {
     const world = await createWorld(data)
     setWorlds((prev) => [world, ...prev])
-    setModal(null)
+    onGenerating()
+    await generateWorldImage(world.id)
+    navigate(`/worlds/${world.id}`)
   }
 
   async function handleEdit(data) {
