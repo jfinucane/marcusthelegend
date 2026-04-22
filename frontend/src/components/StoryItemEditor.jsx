@@ -184,7 +184,7 @@ export default function StoryItemEditor({ item, index, storyVoice, onUpdate, onD
                 onBlur={handleAdjustedTextBlur}
                 placeholder="TTS override..."
                 rows={2}
-                className="w-full bg-gray-900 text-gray-600 hover:text-gray-300 focus:text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-700 transition-colors"
+                className="hidden w-full bg-gray-900 text-gray-600 hover:text-gray-300 focus:text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-700 transition-colors"
               />
             </>
           ) : (
@@ -203,7 +203,7 @@ export default function StoryItemEditor({ item, index, storyVoice, onUpdate, onD
                 onBlur={handleAdjustedTextBlur}
                 placeholder="TTS override..."
                 rows={2}
-                className="w-full bg-gray-900 text-gray-600 hover:text-gray-300 focus:text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder-gray-700 transition-colors"
+                className="hidden w-full bg-gray-900 text-gray-600 hover:text-gray-300 focus:text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder-gray-700 transition-colors"
               />
             </>
           )}
