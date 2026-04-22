@@ -64,17 +64,22 @@ def delete_story(story_id):
 @stories_bp.route("/stories/<story_id>/generate-image", methods=["POST"])
 def generate_story_image(story_id):
     story = db.get_or_404(Story, story_id)
+    world = story.world
+    prompt = (
+        f"World Title: {world.title} World Description: {world.description} "
+        f"Story Title: {story.title} Story Description: {story.description}"
+    )
     try:
-        image_url = generate_image(story.description)
+        image_url = generate_image(prompt)
         story.image_path = image_url
         log = ImageGenerationLog(entity_type="story", entity_id=story_id, action="generate",
-                                 prompt=story.description, result_image_path=image_url, success=True)
+                                 prompt=prompt, result_image_path=image_url, success=True)
         db.session.add(log)
         db.session.commit()
         return jsonify({"image_path": image_url})
     except Exception as e:
         log = ImageGenerationLog(entity_type="story", entity_id=story_id, action="generate",
-                                 prompt=story.description, success=False,
+                                 prompt=prompt, success=False,
                                  reason_code="gemini_error", error_message=str(e))
         db.session.add(log)
         db.session.commit()
