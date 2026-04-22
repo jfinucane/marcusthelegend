@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    hmr: { host: 'spark-b0aa.taileb1e78.ts.net', clientPort: 443 },
+    hmr: true,
     headers: {
       'Access-Control-Allow-Private-Network': 'true',
     },
