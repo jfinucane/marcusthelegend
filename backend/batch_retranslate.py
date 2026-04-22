@@ -8,9 +8,11 @@ import sys
 import time
 import urllib.request
 
+import os
+
 import psycopg
 
-DB_URL = 'postgresql://storyforge_user:bueller@localhost:5432/storyforge_db'
+DB_URL = os.environ['DATABASE_URL'].replace('postgresql+psycopg://', 'postgresql://')
 LLM_URL = 'http://localhost:8000/v1/chat/completions'
 LLM_MODEL = 'Nemotron-3-Nano-30B-A3B-Q8_0.gguf'
 # Magpie TTS doesn't read numbers well, so pre-convert digits to spoken words before TTS
