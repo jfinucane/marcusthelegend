@@ -29,10 +29,12 @@ class World(db.Model):
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=False)
     image_path = db.Column(db.String(512), nullable=True)
+    chat_history = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     stories = db.relationship("Story", back_populates="world", cascade="all, delete-orphan", lazy="dynamic")
+    entities = db.relationship("WorldEntity", back_populates="world", cascade="all, delete-orphan", lazy="dynamic")
 
     def to_dict(self, include_stories=False):
         data = {
@@ -58,6 +60,9 @@ class Story(db.Model):
     image_path = db.Column(db.String(512), nullable=True)
     order_index = db.Column(db.Integer, default=0)
     voice = db.Column(db.String(64), nullable=True, default='john')
+    chat_history = db.Column(db.Text, nullable=True)
+    chat_image_count = db.Column(db.Integer, nullable=False, default=0)
+    chat_summary = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -115,6 +120,39 @@ class StoryItem(db.Model):
             "adjusted_text": self.adjusted_text,
             "voice": self.voice,
             "language": self.language,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class WorldEntity(db.Model):
+    __tablename__ = "world_entities"
+
+    VALID_TYPES = ("character", "place", "item", "other")
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    world_id = db.Column(db.String(36), db.ForeignKey("worlds.id", ondelete="CASCADE"), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    entity_type = db.Column(db.String(50), nullable=False, default="other")
+    image_path = db.Column(db.String(512), nullable=True)
+    gemini_file_name = db.Column(db.String(255), nullable=True)
+    gemini_file_uploaded_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
+    updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    world = db.relationship("World", back_populates="entities")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "world_id": self.world_id,
+            "name": self.name,
+            "description": self.description,
+            "entity_type": self.entity_type,
+            "image_path": self.image_path,
+            "gemini_file_name": self.gemini_file_name,
+            "gemini_file_uploaded_at": self.gemini_file_uploaded_at.isoformat() if self.gemini_file_uploaded_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
