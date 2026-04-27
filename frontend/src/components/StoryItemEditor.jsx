@@ -16,6 +16,8 @@ export default function StoryItemEditor({ item, index, storyVoice, onUpdate, onD
   const [translating, setTranslating] = useState(false)
   const [error, setError] = useState(null)
   const [voiceModalOpen, setVoiceModalOpen] = useState(false)
+  const [lastPrompt, setLastPrompt] = useState(null)
+  const [promptModalOpen, setPromptModalOpen] = useState(false)
 
   async function autoTranslate(sourceText) {
     setTranslating(true)
@@ -159,17 +161,6 @@ export default function StoryItemEditor({ item, index, storyVoice, onUpdate, onD
                 rows={3}
                 className="w-full bg-gray-900 text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600"
               />
-              <ImageBlock
-                imagePath={item.image_path}
-                onGenerate={() => generateItemImage(item.id)}
-                onUpload={(file) => uploadItemImage(item.id, file)}
-                onImageChange={handleImageChange}
-                onEdit={(modText) => editItemImage(item.id, modText)}
-                onEditChange={(res) => {
-                  setText(res.description || '')
-                  onUpdate({ ...item, image_path: res.image_path, description: res.description })
-                }}
-              />
               <textarea
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
@@ -177,6 +168,22 @@ export default function StoryItemEditor({ item, index, storyVoice, onUpdate, onD
                 placeholder="Caption (optional)..."
                 rows={2}
                 className="w-full bg-gray-900 text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600"
+              />
+              <ImageBlock
+                imagePath={item.image_path}
+                onGenerate={async () => {
+                  const res = await generateItemImage(item.id)
+                  if (res.prompt) setLastPrompt(res.prompt)
+                  return res
+                }}
+                onUpload={(file) => uploadItemImage(item.id, file)}
+                onImageChange={handleImageChange}
+                onEdit={(modText) => editItemImage(item.id, modText)}
+                onEditChange={(res) => {
+                  setText(res.description || '')
+                  onUpdate({ ...item, image_path: res.image_path, description: res.description })
+                }}
+                onImageClick={lastPrompt ? () => setPromptModalOpen(true) : undefined}
               />
               <textarea
                 value={adjustedText}
@@ -214,6 +221,14 @@ export default function StoryItemEditor({ item, index, storyVoice, onUpdate, onD
         </div>
       )}
     </Draggable>
+
+      {promptModalOpen && (
+        <Modal title="Image Prompt" onClose={() => setPromptModalOpen(false)}>
+          <pre className="text-gray-300 text-xs whitespace-pre-wrap break-words font-mono bg-gray-900 rounded-lg p-3 max-h-96 overflow-y-auto">
+            {lastPrompt}
+          </pre>
+        </Modal>
+      )}
 
       {voiceModalOpen && (
         <Modal title="Item Voice" onClose={() => setVoiceModalOpen(false)}>
