@@ -80,6 +80,8 @@ export default function StoryDetailPage() {
   const [newItemId, setNewItemId] = useState(null)
   const [voiceModalOpen, setVoiceModalOpen] = useState(false)
   const [showMontage, setShowMontage] = useState(false)
+  const [lastStoryPrompt, setLastStoryPrompt] = useState(null)
+  const [promptModalOpen, setPromptModalOpen] = useState(false)
   const itemRefs = useRef({})
 
   useEffect(() => {
@@ -252,11 +254,16 @@ export default function StoryDetailPage() {
 
           <ImageBlock
             imagePath={story?.image_path}
-            onGenerate={() => generateStoryImage(id)}
+            onGenerate={async () => {
+              const res = await generateStoryImage(id)
+              if (res.prompt) setLastStoryPrompt(res.prompt)
+              return res
+            }}
             onUpload={(file) => uploadStoryImage(id, file)}
             onImageChange={handleStoryImageChange}
             onEdit={(modText) => editStoryImage(id, modText)}
             onEditChange={(res) => setStory((s) => ({ ...s, image_path: res.image_path, description: res.description }))}
+            onImageClick={lastStoryPrompt ? () => setPromptModalOpen(true) : undefined}
             extraButtons={
               <>
                 <button
@@ -338,6 +345,14 @@ export default function StoryDetailPage() {
           )}
         </div>
       </main>
+
+      {promptModalOpen && (
+        <Modal title="Image Prompt" onClose={() => setPromptModalOpen(false)}>
+          <pre className="text-gray-300 text-xs whitespace-pre-wrap break-words font-mono bg-gray-900 rounded-lg p-3 max-h-96 overflow-y-auto">
+            {lastStoryPrompt}
+          </pre>
+        </Modal>
+      )}
 
       {showMontage && story && (
         <MontageModal story={story} onClose={() => setShowMontage(false)} />

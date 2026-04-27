@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from .. import db
-from ..models import World, Story, ImageGenerationLog
+from ..models import World, Story, WorldEntity, ImageGenerationLog
 from ..image_service import generate_image, edit_image, save_uploaded_file
 
 stories_bp = Blueprint("stories", __name__, url_prefix="/api")
@@ -65,9 +65,15 @@ def delete_story(story_id):
 def generate_story_image(story_id):
     story = db.get_or_404(Story, story_id)
     world = story.world
+    entities = WorldEntity.query.filter_by(world_id=world.id).all()
+    entity_text = ""
+    if entities:
+        names = ", ".join(f"{e.name} ({e.entity_type})" for e in entities)
+        entity_text = f" Characters and places in this world: {names}."
     prompt = (
-        f"World Title: {world.title} World Description: {world.description} "
-        f"Story Title: {story.title} Story Description: {story.description}"
+        f"World: {world.title} — {world.description} "
+        f"Story: {story.title} — {story.description}"
+        f"{entity_text}"
     )
     try:
         image_url = generate_image(prompt)
@@ -76,7 +82,7 @@ def generate_story_image(story_id):
                                  prompt=prompt, result_image_path=image_url, success=True)
         db.session.add(log)
         db.session.commit()
-        return jsonify({"image_path": image_url})
+        return jsonify({"image_path": image_url, "prompt": prompt})
     except Exception as e:
         log = ImageGenerationLog(entity_type="story", entity_id=story_id, action="generate",
                                  prompt=prompt, success=False,
