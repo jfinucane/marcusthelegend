@@ -19,9 +19,15 @@ def save_image_bytes(image_bytes: bytes, extension: str = "png") -> str:
     return f"/static/images/{filename}"
 
 
+def _sanitize_prompt(prompt: str) -> str:
+    import re
+    return re.sub(r'\bbackground\b', 'setting', prompt, flags=re.IGNORECASE)
+
+
 def generate_image(prompt: str) -> str:
     """Generate an image via Gemini and return the server-relative URL."""
     import google.generativeai as genai
+    prompt = _sanitize_prompt(prompt)
 
     api_key = current_app.config.get("GEMINI_API_KEY")
     if not api_key:
