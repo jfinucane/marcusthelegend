@@ -21,7 +21,9 @@ def save_image_bytes(image_bytes: bytes, extension: str = "png") -> str:
 
 def _sanitize_prompt(prompt: str) -> str:
     import re
-    return re.sub(r'\bbackground\b', 'setting', prompt, flags=re.IGNORECASE)
+    def _replace(m):
+        return 'settings' if m.group(0).lower().endswith('s') else 'setting'
+    return re.sub(r'\bbackgrounds?\b', _replace, prompt, flags=re.IGNORECASE)
 
 
 def generate_image(prompt: str) -> str:
