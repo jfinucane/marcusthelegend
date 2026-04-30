@@ -1,7 +1,8 @@
 from flask import Blueprint, jsonify, request
 from .. import db
 from ..models import Story, StoryItem, World, ImageGenerationLog
-from ..image_service import generate_image, edit_image, save_uploaded_file
+from ..image_service import save_uploaded_file
+from .. import chat_service
 
 items_bp = Blueprint("items", __name__, url_prefix="/api")
 
@@ -83,18 +84,17 @@ def generate_item_image(item_id):
     world = db.session.get(World, story.world_id)
     caption_part = f", Caption: {item.caption}" if item.caption else ""
     prompt = (
-        f"Context: [World Title: {world.title} World Description: {world.description} "
-        f"Story Title: {story.title} Story Description: {story.description}] "
-        f"Draw scene: Description: {item.description}{caption_part}"
+        f"Draw scene: Description: {item.description}{caption_part} "
+        f"[Story: {story.title} — {story.description}]"
     )
     try:
-        image_url = generate_image(prompt)
+        image_url, _ = chat_service.generate_item_image(item, prompt, story)
         item.image_path = image_url
         log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="generate",
                                  prompt=prompt, result_image_path=image_url, success=True)
         db.session.add(log)
         db.session.commit()
-        return jsonify({"image_path": image_url})
+        return jsonify({"image_path": image_url, "prompt": prompt})
     except Exception as e:
         log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="generate",
                                  prompt=prompt, success=False,
@@ -126,16 +126,13 @@ def edit_item_image(item_id):
     if not modification_text:
         return jsonify({"error": "modification_text is required"}), 400
     story = db.session.get(Story, item.story_id)
-    world = db.session.get(World, story.world_id)
     caption_part = f", Caption: {item.caption}" if item.caption else ""
     prompt = (
-        f"Context: [World Title: {world.title} World Description: {world.description} "
-        f"Story Title: {story.title} Story Description: {story.description}] "
-        f"Draw scene: Description: {item.description}{caption_part} "
+        f"Modify this scene: Description: {item.description}{caption_part} "
         f"Modification: {modification_text}"
     )
     try:
-        image_url = edit_image(item.image_path, prompt)
+        image_url, _ = chat_service.edit_item_image(item, prompt, story)
         item.image_path = image_url
         current_desc = item.description or ""
         item.description = f"{current_desc} ({modification_text})"

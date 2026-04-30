@@ -4,6 +4,11 @@ import os
 # Ensure backend/ is on path so `config` module resolves
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+# Set these BEFORE importing the app package, which calls load_dotenv at
+# module level. load_dotenv respects existing env vars, so this wins.
+os.environ['DATABASE_URL'] = 'sqlite://'
+os.environ.setdefault('GEMINI_API_KEY', 'test')
+
 import pytest
 from app import create_app, db as _db
 from app.models import World, Story, StoryItem
@@ -11,9 +16,6 @@ from app.models import World, Story, StoryItem
 
 @pytest.fixture(scope='session')
 def app():
-    os.environ.setdefault('DATABASE_URL', 'sqlite://')
-    os.environ.setdefault('GEMINI_API_KEY', 'test')
-
     application = create_app()
     application.config.update(
         TESTING=True,

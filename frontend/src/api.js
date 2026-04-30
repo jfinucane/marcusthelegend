@@ -118,3 +118,33 @@ export const reorderItems = (storyId, itemIds) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ item_ids: itemIds }),
   })
+
+// World Entities
+export const listEntities = (worldId) => request(`/api/worlds/${worldId}/entities`)
+export const createEntity = (worldId, data) =>
+  request(`/api/worlds/${worldId}/entities`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+export const updateEntity = (id, data) =>
+  request(`/api/entities/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+export const deleteEntity = (id) =>
+  request(`/api/entities/${id}`, { method: 'DELETE' })
+export const generateEntityImage = (id) =>
+  request(`/api/entities/${id}/generate-image`, { method: 'POST' })
+export const editEntityImage = (id, modificationText) =>
+  request(`/api/entities/${id}/edit-image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ modification_text: modificationText }),
+  })
+export const uploadEntityImage = (id, file) => {
+  const form = new FormData()
+  form.append('file', file)
+  return request(`/api/entities/${id}/upload-image`, { method: 'POST', body: form })
+}
