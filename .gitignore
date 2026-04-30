@@ -21,3 +21,11 @@ backend/seed_users.py
 # SSL certificates and keys
 frontend/*.crt
 frontend/*.key
+*.crt
+*.key
+
+# Logs
+flask.log
+
+# Vite cache
+frontend/.vite/
