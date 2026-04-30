@@ -94,7 +94,7 @@ def generate_item_image(item_id):
                                  prompt=prompt, result_image_path=image_url, success=True)
         db.session.add(log)
         db.session.commit()
-        return jsonify({"image_path": image_url})
+        return jsonify({"image_path": image_url, "prompt": prompt})
     except Exception as e:
         log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="generate",
                                  prompt=prompt, success=False,

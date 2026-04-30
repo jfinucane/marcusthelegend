@@ -13,7 +13,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || ''
  *   onEdit        – optional async fn(modificationText) → { image_path, description }
  *   onEditChange  – optional fn(result) called after a successful edit
  */
-export default function ImageBlock({ imagePath, onGenerate, onUpload, onImageChange, onEdit, onEditChange, extraButtons }) {
+export default function ImageBlock({ imagePath, onGenerate, onUpload, onImageChange, onEdit, onEditChange, extraButtons, onImageClick }) {
   const [generating, setGenerating] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [editMode, setEditMode] = useState(false)
@@ -77,7 +77,8 @@ export default function ImageBlock({ imagePath, onGenerate, onUpload, onImageCha
           <img
             src={`${BASE_URL}${imagePath}`}
             alt="Generated"
-            className="w-full max-w-lg rounded-lg object-cover shadow-lg"
+            onClick={onImageClick}
+            className={`w-full max-w-lg rounded-lg object-cover shadow-lg ${onImageClick ? 'cursor-pointer' : ''}`}
           />
           <div className="flex gap-2 flex-wrap">
             {onEdit && (

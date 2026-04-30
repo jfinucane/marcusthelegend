@@ -1,31 +1,50 @@
 import { useRef, useState } from 'react'
-import { generateEntityImage, uploadEntityImage } from '../api'
+import { generateEntityImage, editEntityImage, uploadEntityImage } from '../api'
 import Spinner from './Spinner'
 
 const BASE_URL = import.meta.env.VITE_API_URL || ''
 
 const TYPE_LABELS = { character: 'Person', place: 'Place', item: 'Thing', other: 'Other' }
 
-export default function EntityCard({ entity: initial, onEdit, onDelete }) {
-  const [entity, setEntity] = useState(initial)
+export default function EntityCard({ entity, onEdit, onDelete }) {
+  const [imagePath, setImagePath] = useState(entity.image_path)
   const [generating, setGenerating] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [editText, setEditText] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState(null)
   const fileRef = useRef(null)
 
-  const busy = generating || uploading
+  const busy = generating || uploading || editing
 
   async function handleGenerate() {
     setError(null)
     setGenerating(true)
     try {
       const res = await generateEntityImage(entity.id)
-      setEntity((e) => ({ ...e, image_path: res.image_path }))
+      setImagePath(res.image_path)
     } catch (e) {
       setError(e.message)
     } finally {
       setGenerating(false)
+    }
+  }
+
+  async function handleEdit() {
+    if (!editText.trim()) return
+    setError(null)
+    setEditing(true)
+    try {
+      const res = await editEntityImage(entity.id, editText.trim())
+      setImagePath(res.image_path)
+      setEditMode(false)
+      setEditText('')
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setEditing(false)
     }
   }
 
@@ -36,7 +55,7 @@ export default function EntityCard({ entity: initial, onEdit, onDelete }) {
     setUploading(true)
     try {
       const res = await uploadEntityImage(entity.id, file)
-      setEntity((e) => ({ ...e, image_path: res.image_path }))
+      setImagePath(res.image_path)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -55,9 +74,9 @@ export default function EntityCard({ entity: initial, onEdit, onDelete }) {
 
   return (
     <div className="bg-gray-800 rounded-xl overflow-hidden shadow flex flex-col">
-      {entity.image_path ? (
+      {imagePath ? (
         <img
-          src={`${BASE_URL}${entity.image_path}`}
+          src={`${BASE_URL}${imagePath}`}
           alt={entity.name}
           className="w-full h-32 object-cover"
         />
@@ -79,13 +98,48 @@ export default function EntityCard({ entity: initial, onEdit, onDelete }) {
           <p className="text-gray-400 text-xs line-clamp-2 flex-1">{entity.description}</p>
         )}
 
-        {error && (
-          <p className="text-red-400 text-xs">{error}</p>
+        {error && <p className="text-red-400 text-xs">{error}</p>}
+
+        {editMode && (
+          <div className="space-y-1.5">
+            <textarea
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') { setEditMode(false); setEditText('') } }}
+              placeholder="Describe the changes..."
+              autoFocus
+              rows={2}
+              className="w-full bg-gray-900 text-gray-100 rounded-lg px-2 py-1.5 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-gray-600"
+            />
+            <div className="flex gap-1.5">
+              <button
+                onClick={handleEdit}
+                disabled={editing || !editText.trim()}
+                className="flex-1 py-1 text-xs bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white rounded-lg transition-colors"
+              >
+                {editing ? <Spinner label="Saving..." /> : 'Save'}
+              </button>
+              <button
+                onClick={() => { setEditMode(false); setEditText(''); setError(null) }}
+                disabled={editing}
+                className="flex-1 py-1 text-xs bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         )}
 
         <div className="flex gap-1.5 flex-wrap pt-1">
-          {entity.image_path ? (
+          {imagePath ? (
             <>
+              <button
+                onClick={() => { setEditMode((m) => !m); setEditText(''); setError(null) }}
+                disabled={busy}
+                className="flex-1 py-1 text-xs bg-teal-700 hover:bg-teal-600 disabled:opacity-50 text-white rounded-lg transition-colors"
+              >
+                Edit Image
+              </button>
               <button
                 onClick={handleGenerate}
                 disabled={busy}
@@ -96,7 +150,7 @@ export default function EntityCard({ entity: initial, onEdit, onDelete }) {
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={busy}
-                className="flex-1 py-1 text-xs bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white rounded-lg transition-colors"
+                className="py-1 px-2 text-xs bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white rounded-lg transition-colors"
               >
                 {uploading ? <Spinner label="..." /> : 'Upload'}
               </button>

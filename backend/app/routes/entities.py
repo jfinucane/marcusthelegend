@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from .. import db
 from ..models import WorldEntity, World, ImageGenerationLog
-from ..image_service import generate_image, save_uploaded_file
+from ..image_service import generate_image, edit_image, save_uploaded_file
 
 entities_bp = Blueprint("entities", __name__, url_prefix="/api")
 
@@ -67,7 +67,7 @@ def delete_entity(entity_id):
 def generate_entity_image(entity_id):
     entity = db.get_or_404(WorldEntity, entity_id)
     world = db.session.get(World, entity.world_id)
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     desc = data.get("description") or entity.description or entity.name
     prompt = (
         f"Context: [World: {world.title} — {world.description}] "
@@ -89,6 +89,38 @@ def generate_entity_image(entity_id):
         log = ImageGenerationLog(
             entity_type="world_entity", entity_id=entity_id,
             action="generate", prompt=prompt, success=False,
+            reason_code="gemini_error", error_message=str(e),
+        )
+        db.session.add(log)
+        db.session.commit()
+        return jsonify({"error": str(e)}), 500
+
+
+@entities_bp.route("/entities/<entity_id>/edit-image", methods=["POST"])
+def edit_entity_image(entity_id):
+    entity = db.get_or_404(WorldEntity, entity_id)
+    if not entity.image_path:
+        return jsonify({"error": "Entity has no image to edit"}), 400
+    data = request.get_json(silent=True) or {}
+    modification_text = (data.get("modification_text") or "").strip()
+    if not modification_text:
+        return jsonify({"error": "modification_text is required"}), 400
+    try:
+        image_url = edit_image(entity.image_path, modification_text)
+        entity.image_path = image_url
+        entity.gemini_file_name = None
+        entity.gemini_file_uploaded_at = None
+        log = ImageGenerationLog(
+            entity_type="world_entity", entity_id=entity_id,
+            action="edit", prompt=modification_text, result_image_path=image_url, success=True,
+        )
+        db.session.add(log)
+        db.session.commit()
+        return jsonify({"image_path": image_url})
+    except Exception as e:
+        log = ImageGenerationLog(
+            entity_type="world_entity", entity_id=entity_id,
+            action="edit", prompt=modification_text, success=False,
             reason_code="gemini_error", error_message=str(e),
         )
         db.session.add(log)

@@ -330,9 +330,9 @@ export default function WorldDetailPage() {
             <h2 className="text-xl font-semibold text-gray-200">People, Place, or Thing</h2>
             <button
               onClick={() => setModal('create-entity')}
-              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-sm rounded-lg transition-colors"
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-white text-sm rounded-lg transition-colors"
             >
-              + Add
+              Add People
             </button>
           </div>
 
