@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
       FLASK_ENV: development
     volumes:
       - ./backend/static/images:/app/static/images
