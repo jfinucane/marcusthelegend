@@ -167,6 +167,18 @@ def set_story_image(story_id):
     return jsonify({"image_path": image_path})
 
 
+@stories_bp.route("/stories/<story_id>/kokoro-voice", methods=["POST"])
+def set_kokoro_voice(story_id):
+    story = db.get_or_404(Story, story_id)
+    data = request.get_json()
+    voice = (data or {}).get("kokoro_voice", "").strip()
+    if not voice:
+        return jsonify({"error": "kokoro_voice is required"}), 400
+    story.kokoro_voice = voice
+    db.session.commit()
+    return jsonify(story.to_dict())
+
+
 @stories_bp.route("/stories/<story_id>/reset-chat", methods=["POST"])
 def reset_story_chat(story_id):
     story = db.get_or_404(Story, story_id)
