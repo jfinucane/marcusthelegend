@@ -17,8 +17,7 @@ import StoryItemEditor from '../components/StoryItemEditor'
 import Spinner from '../components/Spinner'
 import Modal from '../components/Modal'
 import MontageModal from '../components/MontageModal'
-
-const VOICES = ['john', 'sofia', 'aria', 'jason', 'leo']
+import KokoroVoiceModal from '../components/KokoroVoiceModal'
 
 function InsertDivider({ onAdd, disabled }) {
   const [open, setOpen] = useState(false)
@@ -80,7 +79,7 @@ export default function StoryDetailPage() {
   const [savingStory, setSavingStory] = useState(false)
   const [addingItem, setAddingItem] = useState(false)
   const [newItemId, setNewItemId] = useState(null)
-  const [voiceModalOpen, setVoiceModalOpen] = useState(false)
+  const [kokoroModalOpen, setKokoroModalOpen] = useState(false)
   const [showMontage, setShowMontage] = useState(false)
   const [lastStoryPrompt, setLastStoryPrompt] = useState(null)
   const [promptModalOpen, setPromptModalOpen] = useState(false)
@@ -126,12 +125,6 @@ export default function StoryDetailPage() {
     } finally {
       setResettingSession(false)
     }
-  }
-
-  async function handleVoiceSelect(voice) {
-    const updated = await updateStory(id, { voice })
-    setStory(updated)
-    setVoiceModalOpen(false)
   }
 
   function handleStoryImageChange(imagePath) {
@@ -283,11 +276,11 @@ export default function StoryDetailPage() {
             extraButtons={
               <>
                 <button
-                  onClick={() => setVoiceModalOpen(true)}
-                  className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
-                  title={`Voice: ${story?.voice || 'john'}`}
+                  onClick={() => setKokoroModalOpen(true)}
+                  className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300 transition-colors"
+                  title={story?.kokoro_voice ? `Kokoro: ${story.kokoro_voice}` : 'Set Kokoro voice'}
                 >
-                  Edit Voice
+                  Kokoro Voice
                 </button>
                 <button
                   onClick={handleResetSession}
@@ -382,24 +375,13 @@ export default function StoryDetailPage() {
         <MontageModal story={story} onClose={() => setShowMontage(false)} />
       )}
 
-      {voiceModalOpen && (
-        <Modal title="Story Voice" onClose={() => setVoiceModalOpen(false)}>
-          <div className="space-y-2">
-            {VOICES.map(v => (
-              <label key={v} className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="radio"
-                  name="story-detail-voice"
-                  value={v}
-                  checked={(story?.voice || 'john') === v}
-                  onChange={() => handleVoiceSelect(v)}
-                  className="accent-violet-500"
-                />
-                <span className="text-gray-200 group-hover:text-white text-sm capitalize">{v}</span>
-              </label>
-            ))}
-          </div>
-        </Modal>
+      {kokoroModalOpen && story && (
+        <KokoroVoiceModal
+          storyId={story.id}
+          currentVoice={story.kokoro_voice}
+          onClose={() => setKokoroModalOpen(false)}
+          onSave={updated => setStory(updated)}
+        />
       )}
     </div>
   )

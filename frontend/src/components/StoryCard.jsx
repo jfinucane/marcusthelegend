@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import StorybookModal from './StorybookModal'
 import MontageModal from './MontageModal'
 import Modal from './Modal'
+import KokoroVoiceModal from './KokoroVoiceModal'
 import { updateStory } from '../api'
 
 const BASE_URL = import.meta.env.VITE_API_URL || ''
@@ -15,6 +16,7 @@ export default function StoryCard({ story: initialStory, onEdit, onDelete }) {
   const [showMontage, setShowMontage] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [voiceModalOpen, setVoiceModalOpen] = useState(false)
+  const [kokoroModalOpen, setKokoroModalOpen] = useState(false)
 
   async function handleVoiceSelect(voice) {
     const updated = await updateStory(story.id, { voice })
@@ -93,6 +95,13 @@ export default function StoryCard({ story: initialStory, onEdit, onDelete }) {
             >
               Edit Voice
             </button>
+            <button
+              onClick={() => setKokoroModalOpen(true)}
+              className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300 transition-colors"
+              title={story.kokoro_voice ? `Kokoro: ${story.kokoro_voice}` : 'Set Kokoro voice'}
+            >
+              Kokoro Voice
+            </button>
           </div>
         </div>
       </div>
@@ -102,6 +111,14 @@ export default function StoryCard({ story: initialStory, onEdit, onDelete }) {
       )}
       {showMontage && (
         <MontageModal story={story} onClose={() => setShowMontage(false)} />
+      )}
+      {kokoroModalOpen && (
+        <KokoroVoiceModal
+          storyId={story.id}
+          currentVoice={story.kokoro_voice}
+          onClose={() => setKokoroModalOpen(false)}
+          onSave={updated => setStory(updated)}
+        />
       )}
       {voiceModalOpen && (
         <Modal title="Story Voice" onClose={() => setVoiceModalOpen(false)}>

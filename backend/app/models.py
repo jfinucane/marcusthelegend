@@ -70,6 +70,8 @@ class Story(TimestampMixin, db.Model):
     chat_history = db.Column(db.Text, nullable=True)
     chat_image_count = db.Column(db.Integer, nullable=False, default=0)
     chat_summary = db.Column(db.Text, nullable=True)
+    kokoro_voice = db.Column(db.String(256), nullable=True)
+    kokoro_wav_uuid = db.Column(db.String(256), nullable=True)
 
     world = db.relationship("World", back_populates="stories")
     items = db.relationship("StoryItem", back_populates="story", cascade="all, delete-orphan", order_by="StoryItem.order_index")
@@ -83,6 +85,8 @@ class Story(TimestampMixin, db.Model):
             "image_path": self.image_path,
             "order_index": self.order_index,
             "voice": self.voice or 'john',
+            "kokoro_voice": self.kokoro_voice,
+            "kokoro_wav_uuid": self.kokoro_wav_uuid,
             **self._timestamps(),
         }
         if include_items:

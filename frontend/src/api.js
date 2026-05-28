@@ -71,6 +71,12 @@ export const deleteStory = (id) =>
   request(`/api/stories/${id}`, { method: 'DELETE' })
 export const resetChatSession = (id) =>
   request(`/api/stories/${id}/reset-chat`, { method: 'POST' })
+export const setKokoroVoice = (id, kokoro_voice) =>
+  request(`/api/stories/${id}/kokoro-voice`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kokoro_voice }),
+  })
 export const generateStoryImage = (id) =>
   request(`/api/stories/${id}/generate-image`, { method: 'POST' })
 export const editStoryImage = (id, modificationText) =>

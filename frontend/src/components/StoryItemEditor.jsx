@@ -136,13 +136,6 @@ export default function StoryItemEditor({ item, index, storyVoice, onUpdate, onD
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setVoiceModalOpen(true)}
-                className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded-lg transition-colors"
-                title={effectiveVoiceLabel}
-              >
-                Edit Voice
-              </button>
-              <button
                 onClick={handleDelete}
                 className="text-gray-500 hover:text-red-400 text-sm transition-colors"
               >
