@@ -50,6 +50,7 @@ def create_app():
     from .routes.auth import auth_bp
     from .routes.tts import tts_bp
     from .routes.entities import entities_bp
+    from .routes.image_buckets import image_buckets_bp
 
     app.register_blueprint(worlds_bp)
     app.register_blueprint(stories_bp)
@@ -57,5 +58,6 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(tts_bp)
     app.register_blueprint(entities_bp)
+    app.register_blueprint(image_buckets_bp)
 
     return app

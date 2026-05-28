@@ -7,8 +7,10 @@ import {
   generateStoryImage,
   editStoryImage,
   uploadStoryImage,
+  setStoryImage,
   createItem,
   reorderItems,
+  resetChatSession,
 } from '../api'
 import ImageBlock from '../components/ImageBlock'
 import StoryItemEditor from '../components/StoryItemEditor'
@@ -82,6 +84,7 @@ export default function StoryDetailPage() {
   const [showMontage, setShowMontage] = useState(false)
   const [lastStoryPrompt, setLastStoryPrompt] = useState(null)
   const [promptModalOpen, setPromptModalOpen] = useState(false)
+  const [resettingSession, setResettingSession] = useState(false)
   const itemRefs = useRef({})
 
   useEffect(() => {
@@ -110,6 +113,18 @@ export default function StoryDetailPage() {
       setError(e.message)
     } finally {
       setSavingStory(false)
+    }
+  }
+
+  async function handleResetSession() {
+    if (!confirm('Clear image generation history? The story summary will be kept.')) return
+    setResettingSession(true)
+    try {
+      await resetChatSession(id)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setResettingSession(false)
     }
   }
 
@@ -260,6 +275,7 @@ export default function StoryDetailPage() {
               return res
             }}
             onUpload={(file) => uploadStoryImage(id, file)}
+            onReload={(imagePath) => setStoryImage(id, imagePath)}
             onImageChange={handleStoryImageChange}
             onEdit={(modText) => editStoryImage(id, modText)}
             onEditChange={(res) => setStory((s) => ({ ...s, image_path: res.image_path, description: res.description }))}
@@ -272,6 +288,14 @@ export default function StoryDetailPage() {
                   title={`Voice: ${story?.voice || 'john'}`}
                 >
                   Edit Voice
+                </button>
+                <button
+                  onClick={handleResetSession}
+                  disabled={resettingSession}
+                  className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded-lg text-white transition-colors"
+                  title="Clear image generation history, keep story summary"
+                >
+                  {resettingSession ? 'Resetting...' : '↺ Refresh Session'}
                 </button>
                 <button
                   onClick={() => setShowMontage(true)}

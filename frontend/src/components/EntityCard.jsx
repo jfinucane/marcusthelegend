@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
-import { generateEntityImage, editEntityImage, uploadEntityImage } from '../api'
+import { generateEntityImage, editEntityImage, uploadEntityImage, setEntityImage } from '../api'
 import Spinner from './Spinner'
+import ImageBucketPicker from './ImageBucketPicker'
 
 const BASE_URL = import.meta.env.VITE_API_URL || ''
 
@@ -13,11 +14,13 @@ export default function EntityCard({ entity, onEdit, onDelete }) {
   const [editing, setEditing] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [editText, setEditText] = useState('')
+  const [reloading, setReloading] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState(null)
   const fileRef = useRef(null)
 
-  const busy = generating || uploading || editing
+  const busy = generating || uploading || editing || reloading
 
   async function handleGenerate() {
     setError(null)
@@ -64,6 +67,19 @@ export default function EntityCard({ entity, onEdit, onDelete }) {
     }
   }
 
+  async function handleReload(selectedPath) {
+    setError(null)
+    setReloading(true)
+    try {
+      const res = await setEntityImage(entity.id, selectedPath)
+      setImagePath(res.image_path)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setReloading(false)
+    }
+  }
+
   function handleDeleteClick() {
     if (confirmDelete) {
       onDelete(entity.id)
@@ -74,6 +90,12 @@ export default function EntityCard({ entity, onEdit, onDelete }) {
 
   return (
     <div className="bg-gray-800 rounded-xl overflow-hidden shadow flex flex-col">
+      {pickerOpen && (
+        <ImageBucketPicker
+          onSelect={(path) => { handleReload(path); setPickerOpen(false) }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
       {imagePath ? (
         <img
           src={`${BASE_URL}${imagePath}`}
@@ -154,6 +176,13 @@ export default function EntityCard({ entity, onEdit, onDelete }) {
               >
                 {uploading ? <Spinner label="..." /> : 'Upload'}
               </button>
+              <button
+                onClick={() => setPickerOpen(true)}
+                disabled={busy}
+                className="py-1 px-2 text-xs bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded-lg transition-colors"
+              >
+                {reloading ? <Spinner label="..." /> : 'Reload'}
+              </button>
             </>
           ) : (
             <>
@@ -171,13 +200,22 @@ export default function EntityCard({ entity, onEdit, onDelete }) {
                 </button>
               )}
               {!generating && (
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  disabled={busy}
-                  className="flex-1 py-1 text-xs bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white rounded-lg transition-colors"
-                >
-                  {uploading ? <Spinner label="..." /> : 'Upload'}
-                </button>
+                <>
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    disabled={busy}
+                    className="flex-1 py-1 text-xs bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white rounded-lg transition-colors"
+                  >
+                    {uploading ? <Spinner label="..." /> : 'Upload'}
+                  </button>
+                  <button
+                    onClick={() => setPickerOpen(true)}
+                    disabled={busy}
+                    className="flex-1 py-1 text-xs bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded-lg transition-colors"
+                  >
+                    {reloading ? <Spinner label="..." /> : 'Reload'}
+                  </button>
+                </>
               )}
             </>
           )}

@@ -115,7 +115,9 @@ export default function WorldsPage() {
     const world = await createWorld(data)
     setWorlds((prev) => [world, ...prev])
     onGenerating()
-    await generateWorldImage(world.id)
+    try {
+      await generateWorldImage(world.id)
+    } catch (_) {}
     navigate(`/worlds/${world.id}`)
   }
 

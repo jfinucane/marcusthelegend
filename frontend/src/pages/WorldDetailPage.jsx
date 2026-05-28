@@ -7,6 +7,7 @@ import {
   generateWorldImage,
   editWorldImage,
   uploadWorldImage,
+  setWorldImage,
   createStory,
   generateStoryImage,
   updateStory,
@@ -225,7 +226,9 @@ export default function WorldDetailPage() {
     const story = await createStory(id, data)
     setStories((prev) => [...prev, story])
     onGenerating()
-    await generateStoryImage(story.id)
+    try {
+      await generateStoryImage(story.id)
+    } catch (_) {}
     navigate(`/stories/${story.id}`)
   }
 
@@ -318,6 +321,7 @@ export default function WorldDetailPage() {
             imagePath={world.image_path}
             onGenerate={() => generateWorldImage(id)}
             onUpload={(file) => uploadWorldImage(id, file)}
+            onReload={(imagePath) => setWorldImage(id, imagePath)}
             onImageChange={handleWorldImageChange}
             onEdit={(modText) => editWorldImage(id, modText)}
             onEditChange={(res) => setWorld((w) => ({ ...w, image_path: res.image_path, description: res.description }))}
