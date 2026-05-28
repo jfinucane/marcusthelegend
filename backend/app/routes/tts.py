@@ -2,11 +2,15 @@ import json
 import struct
 import urllib.request
 from flask import Blueprint, request, Response, jsonify
+from .. import db
+from ..models import Story
 
 tts_bp = Blueprint('tts', __name__)
 
 MAGPIE_URL = 'http://localhost:8001/v1/audio/speech'
+KOKORO_URL = 'http://spark-b0aa:8880/v1/audio/speech'
 LLM_URL = 'http://localhost:8000/v1/chat/completions'
+KOKORO_DEFAULT_VOICE = 'am_echo'
 LLM_MODEL = 'Nemotron-3-Nano-30B-A3B-Q8_0.gguf'
 TRANSLATE_PROMPT = (
     'Please translate numbers to the equivalent words as a speaker would, '
@@ -50,6 +54,36 @@ def synthesize():
         return jsonify({'error': str(e)}), 502
 
     return Response(pcm_to_wav(pcm), content_type='audio/wav')
+
+
+@tts_bp.route('/api/stories/<story_id>/kokoro-tts', methods=['POST'])
+def kokoro_tts(story_id):
+    story = db.get_or_404(Story, story_id)
+    data = request.get_json()
+    text = (data.get('text') or '').strip()
+    if not text:
+        return jsonify({'error': 'No text provided'}), 400
+
+    voice = story.kokoro_voice or KOKORO_DEFAULT_VOICE
+    payload = json.dumps({
+        'model': 'kokoro',
+        'input': text,
+        'voice': voice,
+        'response_format': 'wav',
+    }).encode()
+    req = urllib.request.Request(
+        KOKORO_URL,
+        data=payload,
+        headers={'Content-Type': 'application/json'},
+        method='POST',
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            audio = resp.read()
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+    return Response(audio, content_type='audio/wav')
 
 
 @tts_bp.route('/api/translate', methods=['POST'])

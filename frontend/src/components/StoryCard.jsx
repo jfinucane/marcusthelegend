@@ -2,12 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import StorybookModal from './StorybookModal'
 import MontageModal from './MontageModal'
-import Modal from './Modal'
 import KokoroVoiceModal from './KokoroVoiceModal'
-import { updateStory } from '../api'
 
 const BASE_URL = import.meta.env.VITE_API_URL || ''
-const VOICES = ['john', 'sofia', 'aria', 'jason', 'leo']
 
 export default function StoryCard({ story: initialStory, onEdit, onDelete }) {
   const navigate = useNavigate()
@@ -15,14 +12,7 @@ export default function StoryCard({ story: initialStory, onEdit, onDelete }) {
   const [showStorybook, setShowStorybook] = useState(false)
   const [showMontage, setShowMontage] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [voiceModalOpen, setVoiceModalOpen] = useState(false)
   const [kokoroModalOpen, setKokoroModalOpen] = useState(false)
-
-  async function handleVoiceSelect(voice) {
-    const updated = await updateStory(story.id, { voice })
-    setStory(updated)
-    setVoiceModalOpen(false)
-  }
 
   function handleDeleteClick() {
     if (confirmDelete) {
@@ -89,13 +79,6 @@ export default function StoryCard({ story: initialStory, onEdit, onDelete }) {
           </div>
           <div className="flex gap-2 mt-2">
             <button
-              onClick={() => setVoiceModalOpen(true)}
-              className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
-              title={`Voice: ${story.voice || 'john'}`}
-            >
-              Edit Voice
-            </button>
-            <button
               onClick={() => setKokoroModalOpen(true)}
               className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300 transition-colors"
               title={story.kokoro_voice ? `Kokoro: ${story.kokoro_voice}` : 'Set Kokoro voice'}
@@ -119,25 +102,6 @@ export default function StoryCard({ story: initialStory, onEdit, onDelete }) {
           onClose={() => setKokoroModalOpen(false)}
           onSave={updated => setStory(updated)}
         />
-      )}
-      {voiceModalOpen && (
-        <Modal title="Story Voice" onClose={() => setVoiceModalOpen(false)}>
-          <div className="space-y-2">
-            {VOICES.map(v => (
-              <label key={v} className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="radio"
-                  name="story-voice"
-                  value={v}
-                  checked={(story.voice || 'john') === v}
-                  onChange={() => handleVoiceSelect(v)}
-                  className="accent-violet-500"
-                />
-                <span className="text-gray-200 group-hover:text-white text-sm capitalize">{v}</span>
-              </label>
-            ))}
-          </div>
-        </Modal>
       )}
     </>
   )

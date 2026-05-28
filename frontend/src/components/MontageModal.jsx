@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { getStory } from '../api'
+import { getStory, kokoroTts } from '../api'
 import Spinner from './Spinner'
 
 const BASE_URL = import.meta.env.VITE_API_URL || ''
 
 function getSlideText(item) {
-  if (item.adjusted_text?.trim()) return item.adjusted_text.trim()
   if (item.type === 'image_scene') return item.caption || ''
   return item.narrative_text || ''
 }
@@ -19,6 +18,8 @@ export default function MontageModal({ story, onClose }) {
 
   // audioBlobUrls[idx]: { url, duration } | null (no audio) | undefined (not fetched yet)
   const [audioBlobUrls, setAudioBlobUrls] = useState({})
+  const [isPortrait, setIsPortrait] = useState(false)
+  const isPortraitRef = useRef(false)
 
   const audioRef = useRef(null)
   const startedRef = useRef(-1)
@@ -27,7 +28,17 @@ export default function MontageModal({ story, onClose }) {
 
   useEffect(() => {
     getStory(story.id)
-      .then(data => setItems(data.items || []))
+      .then(data => {
+        const titleSlide = {
+          id: '__title__',
+          type: 'image_scene',
+          image_path: story.image_path,
+          caption: story.title,
+          narrative_text: null,
+          adjusted_text: null,
+        }
+        setItems([titleSlide, ...(data.items || [])])
+      })
       .finally(() => setLoading(false))
   }, [story.id])
 
@@ -38,28 +49,21 @@ export default function MontageModal({ story, onClose }) {
       setAudioBlobUrls(prev => ({ ...prev, [idx]: null }))
       return
     }
-    const effectiveVoice = itemsList[idx].voice || story.voice || 'john'
     try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice: effectiveVoice }),
-      })
-      if (!res.ok) {
-        setAudioBlobUrls(prev => ({ ...prev, [idx]: null }))
-        return
-      }
-      const blob = await res.blob()
-      // WAV: 1ch, 2 bytes/sample, 22000 Hz
-      const duration = blob.size / (22000 * 2)
+      const blob = await kokoroTts(story.id, text)
       const url = URL.createObjectURL(blob)
       blobUrlsRef.current.push(url)
+      const duration = await new Promise(resolve => {
+        const a = new Audio(url)
+        a.onloadedmetadata = () => resolve(a.duration)
+        a.onerror = () => resolve(5)
+      })
       setAudioBlobUrls(prev => ({ ...prev, [idx]: { url, duration } }))
     } catch (e) {
-      console.error('TTS error', e)
+      console.error('Kokoro TTS error', e)
       setAudioBlobUrls(prev => ({ ...prev, [idx]: null }))
     }
-  }, [])
+  }, [story.id])
 
   useEffect(() => {
     if (!playing) return
@@ -81,14 +85,15 @@ export default function MontageModal({ story, onClose }) {
     fetchAudio(index + 1, items)
 
     if (entry === null) {
-      // No audio — show slide for 3s then advance
-      noAudioTimerRef.current = setTimeout(advance, 3000)
+      const isLandscapeImage = items[index]?.type === 'image_scene' && !isPortraitRef.current
+      noAudioTimerRef.current = setTimeout(advance, isPortraitRef.current ? 10000 : (isLandscapeImage ? 7000 : 3000))
       return
     }
 
     const { url, duration } = entry
     const isImage = items[index]?.type === 'image_scene'
-    const PAD = isImage ? 2000 : 0
+    const isTitleSlide = items[index]?.id === '__title__'
+    const PAD = isTitleSlide ? 3000 : (isPortraitRef.current ? 10000 : (isImage ? 2000 : 0))
 
     setSlideDuration(isImage ? duration + 4 : duration)
 
@@ -115,6 +120,19 @@ export default function MontageModal({ story, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  function jumpSlide(delta) {
+    clearTimeout(noAudioTimerRef.current)
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.src = ''
+    }
+    startedRef.current = -1
+    const next = index + delta
+    if (next < 0 || next >= items.length) return
+    setIndex(next)
+    if (audioBlobUrls[next] === undefined) fetchAudio(next, items)
+  }
+
   function startMontage() {
     clearTimeout(noAudioTimerRef.current)
     if (audioRef.current) {
@@ -131,9 +149,20 @@ export default function MontageModal({ story, onClose }) {
 
   const item = items[index]
 
+  useEffect(() => {
+    if (!item || item.type !== 'image_scene' || !item.image_path) {
+      setIsPortrait(false)
+      return
+    }
+    const img = new window.Image()
+    img.onload = () => { const p = img.naturalHeight > img.naturalWidth; isPortraitRef.current = p; setIsPortrait(p) }
+    img.onerror = () => { isPortraitRef.current = false; setIsPortrait(false) }
+    img.src = `${BASE_URL}${item.image_path}`
+  }, [index, item])
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90">
-      <audio ref={audioRef} />
+      <audio ref={audioRef} hidden />
       <div className="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-5xl mx-4 flex flex-col max-h-[90vh]">
 
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 shrink-0">
@@ -155,14 +184,32 @@ export default function MontageModal({ story, onClose }) {
           ) : !item ? null : item.type === 'image_scene' ? (
             <div className="w-full space-y-4">
               {item.image_path ? (
-                <div className="overflow-hidden rounded-xl h-[60vh]">
+                <div className={`relative overflow-hidden rounded-xl flex items-center justify-center ${isPortrait ? 'max-h-[80vh]' : 'h-[60vh]'}`}>
                   <img
                     key={index}
                     src={`${BASE_URL}${item.image_path}`}
                     alt={item.description || 'Scene'}
-                    className="w-full h-full object-cover ken-burns"
-                    style={{ animationDuration: `${slideDuration}s` }}
+                    className={isPortrait ? 'max-h-[80vh] w-auto object-contain' : 'w-full h-full object-cover ken-burns'}
+                    style={isPortrait ? undefined : { animationDuration: `${slideDuration}s` }}
                   />
+                  {isPortrait && (
+                    <>
+                      <button
+                        onClick={() => jumpSlide(-1)}
+                        disabled={index === 0}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-16 h-16 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white disabled:opacity-20 transition-colors text-5xl"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        onClick={() => jumpSlide(1)}
+                        disabled={index === items.length - 1}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-16 h-16 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white disabled:opacity-20 transition-colors text-5xl"
+                      >
+                        ›
+                      </button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="w-full h-[60vh] bg-gray-800 rounded-xl flex items-center justify-center text-gray-500 text-sm">
