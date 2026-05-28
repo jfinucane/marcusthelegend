@@ -8,6 +8,18 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
+class TimestampMixin:
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
+    updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    def _timestamps(self):
+        return {
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
 class User(db.Model):
     __tablename__ = "users"
 
@@ -22,19 +34,16 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
 
-class World(db.Model):
+class World(TimestampMixin, db.Model):
     __tablename__ = "worlds"
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=False)
     image_path = db.Column(db.String(512), nullable=True)
     chat_history = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
-    updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
-    stories = db.relationship("Story", back_populates="world", cascade="all, delete-orphan", lazy="dynamic")
-    entities = db.relationship("WorldEntity", back_populates="world", cascade="all, delete-orphan", lazy="dynamic")
+    stories = db.relationship("Story", back_populates="world", cascade="all, delete-orphan", order_by="Story.order_index")
+    entities = db.relationship("WorldEntity", back_populates="world", cascade="all, delete-orphan")
 
     def to_dict(self, include_stories=False):
         data = {
@@ -42,18 +51,16 @@ class World(db.Model):
             "title": self.title,
             "description": self.description,
             "image_path": self.image_path,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            **self._timestamps(),
         }
         if include_stories:
-            data["stories"] = [s.to_dict() for s in self.stories.order_by(Story.order_index)]
+            data["stories"] = [s.to_dict() for s in self.stories]
         return data
 
 
-class Story(db.Model):
+class Story(TimestampMixin, db.Model):
     __tablename__ = "stories"
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     world_id = db.Column(db.String(36), db.ForeignKey("worlds.id", ondelete="CASCADE"), nullable=False)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=False)
@@ -63,11 +70,9 @@ class Story(db.Model):
     chat_history = db.Column(db.Text, nullable=True)
     chat_image_count = db.Column(db.Integer, nullable=False, default=0)
     chat_summary = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
-    updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     world = db.relationship("World", back_populates="stories")
-    items = db.relationship("StoryItem", back_populates="story", cascade="all, delete-orphan", lazy="dynamic")
+    items = db.relationship("StoryItem", back_populates="story", cascade="all, delete-orphan", order_by="StoryItem.order_index")
 
     def to_dict(self, include_items=False):
         data = {
@@ -78,20 +83,18 @@ class Story(db.Model):
             "image_path": self.image_path,
             "order_index": self.order_index,
             "voice": self.voice or 'john',
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            **self._timestamps(),
         }
         if include_items:
-            data["items"] = [i.to_dict() for i in self.items.order_by(StoryItem.order_index)]
+            data["items"] = [i.to_dict() for i in self.items]
         return data
 
 
-class StoryItem(db.Model):
+class StoryItem(TimestampMixin, db.Model):
     __tablename__ = "story_items"
 
     VALID_TYPES = ("image_scene", "narrative")
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     story_id = db.Column(db.String(36), db.ForeignKey("stories.id", ondelete="CASCADE"), nullable=False)
     type = db.Column(db.String(20), nullable=False)
     order_index = db.Column(db.Integer, default=0)
@@ -102,8 +105,6 @@ class StoryItem(db.Model):
     adjusted_text = db.Column(db.Text, nullable=True)
     voice = db.Column(db.String(64), nullable=True)
     language = db.Column(db.String(16), nullable=True)
-    created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
-    updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     story = db.relationship("Story", back_populates="items")
 
@@ -120,17 +121,15 @@ class StoryItem(db.Model):
             "adjusted_text": self.adjusted_text,
             "voice": self.voice,
             "language": self.language,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            **self._timestamps(),
         }
 
 
-class WorldEntity(db.Model):
+class WorldEntity(TimestampMixin, db.Model):
     __tablename__ = "world_entities"
 
     VALID_TYPES = ("character", "place", "item", "other")
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     world_id = db.Column(db.String(36), db.ForeignKey("worlds.id", ondelete="CASCADE"), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
@@ -138,8 +137,6 @@ class WorldEntity(db.Model):
     image_path = db.Column(db.String(512), nullable=True)
     gemini_file_name = db.Column(db.String(255), nullable=True)
     gemini_file_uploaded_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
-    updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     world = db.relationship("World", back_populates="entities")
 
@@ -153,8 +150,7 @@ class WorldEntity(db.Model):
             "image_path": self.image_path,
             "gemini_file_name": self.gemini_file_name,
             "gemini_file_uploaded_at": self.gemini_file_uploaded_at.isoformat() if self.gemini_file_uploaded_at else None,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            **self._timestamps(),
         }
 
 
