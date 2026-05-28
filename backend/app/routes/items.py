@@ -175,6 +175,18 @@ def upload_item_image(item_id):
         return jsonify({"error": str(e)}), 500
 
 
+@items_bp.route("/items/<item_id>/set-image", methods=["POST"])
+def set_item_image(item_id):
+    item = db.get_or_404(StoryItem, item_id)
+    data = request.get_json()
+    image_path = (data or {}).get("image_path", "")
+    if not image_path or not image_path.startswith("/static/image-buckets/"):
+        return jsonify({"error": "invalid image_path"}), 400
+    item.image_path = image_path
+    db.session.commit()
+    return jsonify({"image_path": image_path})
+
+
 @items_bp.route("/stories/<story_id>/items/reorder", methods=["PATCH"])
 def reorder_items(story_id):
     db.get_or_404(Story, story_id)

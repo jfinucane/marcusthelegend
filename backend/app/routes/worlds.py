@@ -129,3 +129,15 @@ def upload_world_image(world_id):
         db.session.add(log)
         db.session.commit()
         return jsonify({"error": str(e)}), 500
+
+
+@worlds_bp.route("/worlds/<world_id>/set-image", methods=["POST"])
+def set_world_image(world_id):
+    world = db.get_or_404(World, world_id)
+    data = request.get_json()
+    image_path = (data or {}).get("image_path", "")
+    if not image_path or not image_path.startswith("/static/image-buckets/"):
+        return jsonify({"error": "invalid image_path"}), 400
+    world.image_path = image_path
+    db.session.commit()
+    return jsonify({"image_path": image_path})

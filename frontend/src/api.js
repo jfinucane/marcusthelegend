@@ -69,6 +69,8 @@ export const updateStory = (id, data) =>
   })
 export const deleteStory = (id) =>
   request(`/api/stories/${id}`, { method: 'DELETE' })
+export const resetChatSession = (id) =>
+  request(`/api/stories/${id}/reset-chat`, { method: 'POST' })
 export const generateStoryImage = (id) =>
   request(`/api/stories/${id}/generate-image`, { method: 'POST' })
 export const editStoryImage = (id, modificationText) =>
@@ -148,3 +150,18 @@ export const uploadEntityImage = (id, file) => {
   form.append('file', file)
   return request(`/api/entities/${id}/upload-image`, { method: 'POST', body: form })
 }
+
+// Image Buckets
+export const listImageBuckets = () => request('/api/image-buckets')
+
+const _setImage = (url, imagePath) =>
+  request(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image_path: imagePath }),
+  })
+
+export const setWorldImage = (id, imagePath) => _setImage(`/api/worlds/${id}/set-image`, imagePath)
+export const setStoryImage = (id, imagePath) => _setImage(`/api/stories/${id}/set-image`, imagePath)
+export const setItemImage = (id, imagePath) => _setImage(`/api/items/${id}/set-image`, imagePath)
+export const setEntityImage = (id, imagePath) => _setImage(`/api/entities/${id}/set-image`, imagePath)

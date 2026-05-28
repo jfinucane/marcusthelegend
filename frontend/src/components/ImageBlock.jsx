@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import Spinner from './Spinner'
+import ImageBucketPicker from './ImageBucketPicker'
 
 const BASE_URL = import.meta.env.VITE_API_URL || ''
 
@@ -9,17 +10,20 @@ const BASE_URL = import.meta.env.VITE_API_URL || ''
  *   imagePath     – current server-relative image URL or null
  *   onGenerate    – async fn() → { image_path }
  *   onUpload      – async fn(file) → { image_path }
- *   onImageChange – called with new imagePath after generate or upload
+ *   onReload      – optional async fn(imagePath) → { image_path }
+ *   onImageChange – called with new imagePath after generate, upload, or reload
  *   onEdit        – optional async fn(modificationText) → { image_path, description }
  *   onEditChange  – optional fn(result) called after a successful edit
  */
-export default function ImageBlock({ imagePath, onGenerate, onUpload, onImageChange, onEdit, onEditChange, extraButtons, onImageClick }) {
+export default function ImageBlock({ imagePath, onGenerate, onUpload, onReload, onImageChange, onEdit, onEditChange, extraButtons, onImageClick }) {
   const [generating, setGenerating] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [reloading, setReloading] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [editText, setEditText] = useState('')
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const fileRef = useRef(null)
 
   async function handleGenerate() {
@@ -51,6 +55,19 @@ export default function ImageBlock({ imagePath, onGenerate, onUpload, onImageCha
     }
   }
 
+  async function handleReload(selectedPath) {
+    setError(null)
+    setReloading(true)
+    try {
+      const res = await onReload(selectedPath)
+      onImageChange(res.image_path)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setReloading(false)
+    }
+  }
+
   async function handleEdit() {
     if (!editText.trim()) return
     setError(null)
@@ -68,10 +85,17 @@ export default function ImageBlock({ imagePath, onGenerate, onUpload, onImageCha
     }
   }
 
-  const busy = generating || uploading || editing
+  const busy = generating || uploading || reloading || editing
 
   return (
     <div className="space-y-3">
+      {pickerOpen && onReload && (
+        <ImageBucketPicker
+          onSelect={handleReload}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
+
       {imagePath ? (
         <div className="space-y-2">
           <img
@@ -104,6 +128,15 @@ export default function ImageBlock({ imagePath, onGenerate, onUpload, onImageCha
             >
               {uploading ? <Spinner label="Uploading..." /> : 'Upload Image'}
             </button>
+            {onReload && (
+              <button
+                onClick={() => setPickerOpen(true)}
+                disabled={busy}
+                className="px-3 py-1.5 text-sm bg-green-700 hover:bg-green-600 disabled:opacity-50 rounded-lg text-white transition-colors"
+              >
+                {reloading ? <Spinner label="Loading..." /> : 'Reload Image'}
+              </button>
+            )}
             {extraButtons}
           </div>
 
@@ -178,6 +211,19 @@ export default function ImageBlock({ imagePath, onGenerate, onUpload, onImageCha
               >
                 Upload Image
               </button>
+            )}
+            {onReload && (
+              reloading ? (
+                <Spinner label="Loading..." />
+              ) : (
+                <button
+                  onClick={() => setPickerOpen(true)}
+                  disabled={busy}
+                  className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 rounded-lg text-white text-sm transition-colors"
+                >
+                  Reload Image
+                </button>
+              )
             )}
             {extraButtons}
             <input

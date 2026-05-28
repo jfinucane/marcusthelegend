@@ -157,3 +157,15 @@ def upload_entity_image(entity_id):
         db.session.add(log)
         db.session.commit()
         return jsonify({"error": str(e)}), 500
+
+
+@entities_bp.route("/entities/<entity_id>/set-image", methods=["POST"])
+def set_entity_image(entity_id):
+    entity = db.get_or_404(WorldEntity, entity_id)
+    data = request.get_json()
+    image_path = (data or {}).get("image_path", "")
+    if not image_path or not image_path.startswith("/static/image-buckets/"):
+        return jsonify({"error": "invalid image_path"}), 400
+    entity.image_path = image_path
+    db.session.commit()
+    return jsonify({"image_path": image_path})

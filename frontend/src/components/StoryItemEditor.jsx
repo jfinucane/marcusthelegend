@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Draggable } from '@hello-pangea/dnd'
 import ImageBlock from './ImageBlock'
 import Modal from './Modal'
-import { updateItem, deleteItem, generateItemImage, uploadItemImage, editItemImage } from '../api'
+import { updateItem, deleteItem, generateItemImage, uploadItemImage, editItemImage, setItemImage } from '../api'
 
 const VOICES = ['john', 'sofia', 'aria', 'jason', 'leo']
 
@@ -177,6 +177,7 @@ export default function StoryItemEditor({ item, index, storyVoice, onUpdate, onD
                   return res
                 }}
                 onUpload={(file) => uploadItemImage(item.id, file)}
+                onReload={(imagePath) => setItemImage(item.id, imagePath)}
                 onImageChange={handleImageChange}
                 onEdit={(modText) => editItemImage(item.id, modText)}
                 onEditChange={(res) => {

@@ -153,3 +153,24 @@ def upload_story_image(story_id):
         db.session.add(log)
         db.session.commit()
         return jsonify({"error": str(e)}), 500
+
+
+@stories_bp.route("/stories/<story_id>/set-image", methods=["POST"])
+def set_story_image(story_id):
+    story = db.get_or_404(Story, story_id)
+    data = request.get_json()
+    image_path = (data or {}).get("image_path", "")
+    if not image_path or not image_path.startswith("/static/image-buckets/"):
+        return jsonify({"error": "invalid image_path"}), 400
+    story.image_path = image_path
+    db.session.commit()
+    return jsonify({"image_path": image_path})
+
+
+@stories_bp.route("/stories/<story_id>/reset-chat", methods=["POST"])
+def reset_story_chat(story_id):
+    story = db.get_or_404(Story, story_id)
+    story.chat_history = None
+    story.chat_image_count = 0
+    db.session.commit()
+    return jsonify({"message": "chat session reset"})
