@@ -77,6 +77,17 @@ export const setKokoroVoice = (id, kokoro_voice) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ kokoro_voice }),
   })
+
+export async function kokoroTts(storyId, text) {
+  const BASE_URL = import.meta.env.VITE_API_URL || ''
+  const res = await fetch(`${BASE_URL}/api/stories/${storyId}/kokoro-tts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) throw new Error(`TTS error ${res.status}`)
+  return res.blob()
+}
 export const generateStoryImage = (id) =>
   request(`/api/stories/${id}/generate-image`, { method: 'POST' })
 export const editStoryImage = (id, modificationText) =>
