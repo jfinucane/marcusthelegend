@@ -3,6 +3,7 @@ from .. import db
 from ..models import Story, StoryItem, World, ImageGenerationLog
 from ..image_service import save_uploaded_file
 from .. import chat_service
+from ..dialogue_extractor import trigger_background_update
 
 items_bp = Blueprint("items", __name__, url_prefix="/api")
 
@@ -41,6 +42,8 @@ def create_item(story_id):
     )
     db.session.add(item)
     db.session.commit()
+    if data.get("description"):
+        trigger_background_update()
     return jsonify(item.to_dict()), 201
 
 
@@ -48,10 +51,13 @@ def create_item(story_id):
 def update_item(item_id):
     item = db.get_or_404(StoryItem, item_id)
     data = request.get_json()
+    description_changed = "description" in data and data["description"] != item.description
     for field in ("description", "caption", "narrative_text", "adjusted_text", "voice", "language", "order_index"):
         if field in data:
             setattr(item, field, data[field])
     db.session.commit()
+    if description_changed:
+        trigger_background_update()
     return jsonify(item.to_dict())
 
 
@@ -140,6 +146,7 @@ def edit_item_image(item_id):
                                  prompt=prompt, result_image_path=image_url, success=True)
         db.session.add(log)
         db.session.commit()
+        trigger_background_update()
         return jsonify({"image_path": image_url, "description": item.description})
     except Exception as e:
         log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="edit",
