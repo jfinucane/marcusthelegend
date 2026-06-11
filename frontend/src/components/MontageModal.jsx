@@ -5,7 +5,7 @@ import Spinner from './Spinner'
 const BASE_URL = import.meta.env.VITE_API_URL || ''
 
 function getSlideText(item) {
-  if (item.type === 'image_scene') return item.caption || ''
+  if (item.type === 'image_scene') return item.caption || item.adjusted_text || ''
   return item.narrative_text || ''
 }
 
@@ -93,7 +93,10 @@ export default function MontageModal({ story, onClose }) {
     const { url, duration } = entry
     const isImage = items[index]?.type === 'image_scene'
     const isTitleSlide = items[index]?.id === '__title__'
-    const PAD = isTitleSlide ? 3000 : (isPortraitRef.current ? 10000 : (isImage ? 2000 : 0))
+    const currentItem = items[index]
+    const portraitUsesAdjustedText = isPortraitRef.current && currentItem?.adjusted_text && !currentItem?.caption
+    const PRE_PAD = isTitleSlide ? 0 : (isPortraitRef.current ? (portraitUsesAdjustedText ? 2000 : 10000) : (isImage ? 2000 : 0))
+    const POST_PAD = isTitleSlide ? 5000 : PRE_PAD
 
     setSlideDuration(isImage ? duration + 4 : duration)
 
@@ -102,9 +105,9 @@ export default function MontageModal({ story, onClose }) {
       audio.src = url
       audio.play().catch(console.error)
       audio.onended = () => {
-        noAudioTimerRef.current = setTimeout(advance, PAD)
+        noAudioTimerRef.current = setTimeout(advance, POST_PAD)
       }
-    }, PAD)
+    }, PRE_PAD)
   }, [playing, index, audioBlobUrls, items, fetchAudio])
 
   useEffect(() => {

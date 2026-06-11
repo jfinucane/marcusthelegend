@@ -56,6 +56,71 @@ def generate_image(prompt: str) -> str:
     raise RuntimeError(f"No image returned (finish_reason: {finish_reason})")
 
 
+def describe_image(image_url: str) -> str:
+    """Send a comic image to Gemini and return dialogue as 'Speaker says, text.' sentences."""
+    import re
+    import google.generativeai as genai
+
+    api_key = current_app.config.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY is not set")
+
+    genai.configure(api_key=api_key)
+
+    storage_path = _get_storage_path()
+    filename = os.path.basename(image_url)
+    image_path = os.path.join(storage_path, filename)
+
+    with open(image_path, "rb") as f:
+        image_bytes = f.read()
+
+    ext = os.path.splitext(filename)[1].lstrip(".").lower()
+    mime_type = f"image/{'jpeg' if ext == 'jpg' else ext}"
+
+    model = genai.GenerativeModel("gemini-3.1-flash-image-preview")
+
+    image_part = genai.protos.Part(
+        inline_data=genai.protos.Blob(mime_type=mime_type, data=image_bytes)
+    )
+    prompt = (
+        "List only the spoken dialogue from this comic image. "
+        "Output one line per speech bubble in exactly this format: Speaker: text. "
+        "Use a consistent short name for each character (e.g. Dog, Cat, Man). "
+        "Do not include panel descriptions, actions, or any other text."
+    )
+    response = model.generate_content([image_part, prompt])
+
+    for part in response.candidates[0].content.parts:
+        if hasattr(part, "text") and part.text:
+            lines = []
+            for line in part.text.strip().splitlines():
+                line = line.strip().lstrip("*- ").rstrip("*")
+                if ":" not in line:
+                    continue
+                speaker, _, text = line.partition(":")
+                speaker = speaker.strip().strip("*")
+                text = re.sub(r'^["\']|["\']$', '', text.strip())
+                if speaker and text:
+                    lines.append(f"{speaker} says, {text}.")
+            if lines:
+                return "\n".join(lines)
+
+    # Fallback: ask Gemini to describe the image as text, then extract pairs via Ollama
+    from app.dialogue_extractor import _extract_pairs, _to_kokoro_line
+    description_prompt = (
+        "Describe all spoken dialogue in this comic image as plain text, "
+        "noting who says what in each panel."
+    )
+    fallback_response = model.generate_content([image_part, description_prompt])
+    for part in fallback_response.candidates[0].content.parts:
+        if hasattr(part, "text") and part.text:
+            pairs = _extract_pairs(part.text.strip())
+            if pairs:
+                return "\n".join(_to_kokoro_line(p["speaker"], p["text"]) for p in pairs)
+
+    raise RuntimeError("No dialogue found in image")
+
+
 def edit_image(image_url: str, modification_text: str) -> str:
     """Edit an existing image via Gemini nano-banana-2 and return the server-relative URL."""
     import google.generativeai as genai
