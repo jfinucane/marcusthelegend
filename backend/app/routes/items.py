@@ -55,6 +55,12 @@ def update_item(item_id):
     for field in ("description", "caption", "narrative_text", "adjusted_text", "voice", "language", "order_index"):
         if field in data:
             setattr(item, field, data[field])
+    if description_changed:
+        # New description ⇒ re-extract from scratch and reset the dead-letter counter,
+        # unless this same request already supplied an explicit adjusted_text.
+        if "adjusted_text" not in data:
+            item.adjusted_text = None
+        item.dialogue_attempts = 0
     db.session.commit()
     if description_changed:
         trigger_background_update()
@@ -142,6 +148,9 @@ def edit_item_image(item_id):
         item.image_path = image_url
         current_desc = item.description or ""
         item.description = f"{current_desc} ({modification_text})"
+        # Description changed ⇒ stale dialogue; re-extract and reset the counter.
+        item.adjusted_text = None
+        item.dialogue_attempts = 0
         log = ImageGenerationLog(entity_type="item", entity_id=item_id, action="edit",
                                  prompt=prompt, result_image_path=image_url, success=True)
         db.session.add(log)

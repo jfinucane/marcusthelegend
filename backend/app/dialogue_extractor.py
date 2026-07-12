@@ -18,6 +18,18 @@ logger = logging.getLogger(__name__)
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "gemma4:26b"
 
+# Give up on an item after this many failed extraction attempts (dead-letter).
+MAX_ATTEMPTS = 3
+
+# Serializes every Ollama call — the sweep loop AND the image_service fallback —
+# so concurrent callers can't pile up on the single-GPU model and blow past the
+# request timeout while queued. All Ollama access must go through _extract_pairs.
+_ollama_lock = threading.Lock()
+
+# Single-flights the full-table sweep: a trigger that arrives while a sweep is
+# already running is dropped rather than stacking another redundant sweep.
+_sweep_lock = threading.Lock()
+
 EXTRACT_PROMPT_PREFIX = (
     "Extract all spoken dialogue from this comic panel description. "
     "Return ONLY a JSON array of objects with \"speaker\" and \"text\" fields. "
@@ -39,8 +51,9 @@ def _extract_pairs(description: str) -> list[dict]:
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=180) as resp:
-        raw = json.loads(resp.read())["response"].strip()
+    with _ollama_lock:
+        with urllib.request.urlopen(req, timeout=180) as resp:
+            raw = json.loads(resp.read())["response"].strip()
 
     # Strip markdown code fences if present
     lines = raw.splitlines()
@@ -58,11 +71,28 @@ def _to_kokoro_line(speaker: str, text: str) -> str:
 
 
 def _process_all():
+    if not _sweep_lock.acquire(blocking=False):
+        logger.info("dialogue_extractor: sweep already running, skipping trigger")
+        return
+    try:
+        _run_sweep()
+    finally:
+        _sweep_lock.release()
+
+
+def _run_sweep():
     db_url = os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://")
     with psycopg.connect(db_url) as conn:
         with conn.cursor() as cur:
+            # Only pick up items that still need dialogue extracted and haven't
+            # already exhausted their attempts — this is what stops the same
+            # failing UUIDs being re-swept forever.
             cur.execute(
-                "SELECT id, description FROM story_items WHERE description IS NOT NULL AND description != ''"
+                "SELECT id, description FROM story_items "
+                "WHERE description IS NOT NULL AND description != '' "
+                "AND adjusted_text IS NULL "
+                "AND COALESCE(dialogue_attempts, 0) < %s",
+                (MAX_ATTEMPTS,),
             )
             rows = cur.fetchall()
 
@@ -86,7 +116,20 @@ def _process_all():
                 logger.info("dialogue_extractor: updated %s", item_id)
             except Exception as exc:
                 failed += 1
-                logger.error("dialogue_extractor: failed %s: %s", item_id, exc)
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE story_items "
+                        "SET dialogue_attempts = COALESCE(dialogue_attempts, 0) + 1 "
+                        "WHERE id = %s",
+                        (item_id,),
+                    )
+                conn.commit()
+                # Log the exception type too, so a real timeout is distinguishable
+                # from a parse error / connection reset / OOM at a glance.
+                logger.error(
+                    "dialogue_extractor: failed %s: %s: %s",
+                    item_id, type(exc).__name__, exc,
+                )
 
         logger.info("dialogue_extractor: done — updated %d, failed %d", updated, failed)
 
