@@ -109,6 +109,7 @@ class StoryItem(TimestampMixin, db.Model):
     adjusted_text = db.Column(db.Text, nullable=True)
     voice = db.Column(db.String(64), nullable=True)
     language = db.Column(db.String(16), nullable=True)
+    dialogue_attempts = db.Column(db.Integer, nullable=False, server_default="0")
 
     story = db.relationship("Story", back_populates="items")
 
