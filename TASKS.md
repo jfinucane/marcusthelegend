@@ -18,6 +18,17 @@ Documentation is pinned first by request. We work these **one at a time**.
 - [x] **Capture UI screenshots** (Worlds gallery, world+entities, scene editor) via
   headless Playwright Chromium and wire them into the README "Screens" section.
 
+### P0.1 — Cloudflare direct API access  *(setup — ✅ working)*
+Enables direct DNS edits via the Cloudflare REST API (no MCP server needed).
+- Zone ID (`marcusthelegend.com`): `bc7ada28985c60498a3b9f0e0158e519`  *(identifier, not a secret)*
+- Account ID: `697c0f0d102f6dcdcda444bd41805b15`
+- [x] Create an API token — `odd-dream-aff3`, DNS Write, expires **2026-07-29** (account-
+  owned `cfat_` token; tighten to this zone if made permanent).
+- [x] Token stored as `CLOUDFLARE_API_TOKEN` in `backend/.env` (gitignored) and verified
+  `active`. **Note:** `cfat_` account-owned tokens verify/use via the *account-scoped*
+  endpoint `…/accounts/<account_id>/tokens/verify`, not `/user/tokens/verify`.
+- [x] First use: the P11 `www` fix (see below) — done via the API.
+
 ### P1 — Authentication
 - [ ] Replace the shared-password check in `app/routes/auth.py` with real auth:
   per-user login issuing a session or JWT.
@@ -79,12 +90,16 @@ under `marcusthelegend.com` directly.
 - [ ] Verify Alembic migrations are current and add a restore/runbook doc.
 
 ### P11 — Cloudflare / DNS cleanup  *(added)*
-- [ ] Fix `www` — it's AAAA-only, so IPv4 visitors get NXDOMAIN; add a proxied
-  `CNAME www → marcusthelegend.com` (or an A record).
+- [x] Fix `www` — was NXDOMAIN on IPv4; added a proxied `CNAME www →
+  spark-b0aa.taileb1e78.ts.net` (mirrors the apex). Verified: resolves on IPv4 and 301s
+  to the Funnel → app. The redirect rule already covers `www`.
 - [ ] Audit the zone: apex proxied `CNAME → …ts.net` Funnel, `api` / `api-staging-env`
   A records, `pay` (GoDaddy commerce), `_domainconnect` (GoDaddy helper — remove if unused).
-- [ ] Confirm the redirect behavior (301 apex → Funnel URL) is intended vs. a transparent
-  proxy that keeps `marcusthelegend.com` in the address bar.
+- [ ] **Decide redirect vs. proxy.** Confirmed: apex + `www` both 301-redirect to the
+  Funnel URL, so the browser address bar shows `…ts.net`, not `marcusthelegend.com`. To
+  keep the vanity URL, switch from the Cloudflare **redirect Rule** to transparent
+  proxying (dashboard change — needs a token with Rules access, current token is DNS-only)
+  or resolve it via the P5 reverse proxy. No action if the redirect is acceptable.
 - [ ] Tie the `api` / `api-staging-env` hosts into the P4 multi-environment work.
 - [ ] Review Cloudflare SSL/TLS mode and proxied-record security (hides the home IP;
   consider WAF / rate-limit rules — overlaps P6 cost controls).
