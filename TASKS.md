@@ -67,6 +67,17 @@ Documentation is pinned first by request. We work these **one at a time**.
 - [ ] Document and automate Postgres backups (there was a prior data-loss incident).
 - [ ] Verify Alembic migrations are current and add a restore/runbook doc.
 
+### P11 — Cloudflare / DNS cleanup  *(added)*
+- [ ] Fix `www` — it's AAAA-only, so IPv4 visitors get NXDOMAIN; add a proxied
+  `CNAME www → marcusthelegend.com` (or an A record).
+- [ ] Audit the zone: apex proxied `CNAME → …ts.net` Funnel, `api` / `api-staging-env`
+  A records, `pay` (GoDaddy commerce), `_domainconnect` (GoDaddy helper — remove if unused).
+- [ ] Confirm the redirect behavior (301 apex → Funnel URL) is intended vs. a transparent
+  proxy that keeps `marcusthelegend.com` in the address bar.
+- [ ] Tie the `api` / `api-staging-env` hosts into the P4 multi-environment work.
+- [ ] Review Cloudflare SSL/TLS mode and proxied-record security (hides the home IP;
+  consider WAF / rate-limit rules — overlaps P6 cost controls).
+
 ---
 
 ## In Progress

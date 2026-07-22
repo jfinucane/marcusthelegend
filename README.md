@@ -98,6 +98,11 @@ every scene.
 See **[docs/architecture.md](docs/architecture.md)** for how the pieces fit together
 and a deep dive on the image-generation call.
 
+> **Hosting:** the app runs on a headless DGX Spark at home — no cloud, no open router
+> port. Public access to `marcusthelegend.com` goes GoDaddy (registrar) → Cloudflare
+> (DNS + redirect) → **Tailscale Funnel** → Vite → Flask. See the
+> [networking section](docs/architecture.md#public-access--how-marcusthelegendcom-reaches-the-dgx).
+
 ## Getting started
 
 ### Prerequisites
