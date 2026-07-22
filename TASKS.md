@@ -40,9 +40,20 @@ Documentation is pinned first by request. We work these **one at a time**.
 - [ ] Stop hardcoding `FLASK_ENV: development` in compose; drive it from the environment.
 - [ ] Separate frontend build config for dev vs prod (API base URL, etc.).
 
-### P5 — Deployment pattern
-- [ ] Serve backend with a production WSGI server (gunicorn) instead of the Flask dev server.
-- [ ] Build the frontend for production and serve static assets (nginx or Flask static).
+### P5 — Deployment pattern  *(decided: a real reverse proxy on the box)*
+Put a production reverse proxy (nginx or Caddy) in front of the app as the single public
+entry point, replacing the Vite dev server as origin. This also resolves the P11
+redirect-vs-proxy question — Cloudflare/Funnel can point at the proxy and serve the app
+under `marcusthelegend.com` directly.
+- [ ] Add an `nginx`/`caddy` service to Compose as the public entry; add its config
+  (`nginx.conf` / `Caddyfile`): serve the built frontend and `proxy_pass /api` + `/static`
+  → Flask.
+- [ ] Build the frontend for production (`npm run build`) and serve the static `dist/`
+  from the proxy instead of `npm run dev`.
+- [ ] Serve the backend with a production WSGI server (gunicorn) instead of the Flask dev
+  server.
+- [ ] Repoint **Tailscale Funnel** (or a Cloudflare Tunnel) at the proxy's port instead
+  of `:5173`.
 - [ ] Add a `docker-compose.prod.yml` (or override) documenting the deploy topology.
 
 ### P6 — Cost controls
