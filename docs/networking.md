@@ -141,9 +141,9 @@ port. See `TASKS.md` P4.
   in the Cloudflare dashboard, and re-enabling it is the rollback lever.
 - **Tailscale Funnel is a permanent second entry point, not a fallback.** It points at
   nginx (`tailscale funnel --bg http://127.0.0.1:8080`), so the app is also served at
-  `spark-b0aa.taileb1e78.ts.net`. Existing users — children, who cannot be talked
-  through clearing a browser cache — have that hostname bookmarked and still hold the
-  old cached 301, so it must keep working. **Do not run
+  `spark-b0aa.taileb1e78.ts.net`. Existing users — 10–12 year olds on iPads, who cannot
+  be talked through clearing a browser cache (see *Who uses this* in `CLAUDE.md`) — have
+  that hostname bookmarked and still hold the old cached 301, so it must keep working. **Do not run
   `tailscale funnel --https=443 off`.** This makes `tailscaled` a production
   dependency: if it stops, those users lose access even though the domain is fine.
 - **Never add a redirect from the `…ts.net` host to `marcusthelegend.com`.** Browsers
