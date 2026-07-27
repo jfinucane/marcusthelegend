@@ -159,17 +159,16 @@ port. See `TASKS.md` P4.
   Cloudflare Tunnel proxies WebSockets properly, so serving a dev environment through
   the tunnel may sidestep it — untested.
 
-## TLS posture — findings and recommendations
+## TLS posture
 
-Audited **2026-07-27**. Nothing here has been changed; these are open recommendations
-(`TASKS.md` P11).
+Audited and corrected **2026-07-27**.
 
-| Setting | Current | Recommend |
-|---------|---------|-----------|
-| SSL/TLS mode | `flexible` | **Full (strict)** |
-| Always Use HTTPS | `off` | **On** |
-| Minimum TLS version | `1.0` | **1.2** |
-| HSTS | disabled | Later, short `max-age` first |
+| Setting | Was | Now |
+|---------|-----|-----|
+| SSL/TLS mode | `flexible` | **`strict`** (Full strict) |
+| Always Use HTTPS | `off` | **`on`** |
+| Minimum TLS version | `1.0` | **`1.2`** |
+| HSTS | disabled | still disabled — see below |
 
 **SSL/TLS mode** controls how Cloudflare's edge reaches the origin. *Flexible* means the
 edge serves HTTPS to the visitor but fetches from the origin over cleartext HTTP.
@@ -181,18 +180,34 @@ leg crosses the internet, and under *Flexible* Cloudflare fetches it in the clea
 a payments link, so this is the part worth fixing. Switching to Full (strict) does not
 affect the tunnel hostnames.
 
-**Always Use HTTPS is off**, which is the live exposure: `http://marcusthelegend.com`
-currently returns the whole app over unencrypted HTTP, login POST included. Enabling it
-makes Cloudflare 301 to HTTPS. This is safe with respect to the cached-redirect problem
-above — it is a scheme upgrade landing on a working page, not a hostname change, so it
-cannot loop.
+**Always Use HTTPS was off**, which was the live exposure: `http://marcusthelegend.com`
+returned the whole app over unencrypted HTTP, login POST included. It now 301s to HTTPS.
+This is safe with respect to the cached-redirect problem above — a scheme upgrade landing
+on a working page is not a hostname change, so it cannot loop.
 
-**Minimum TLS 1.0 → 1.2** is ordinary hygiene, but weigh it against the audience: a
-pre-2013 browser on an old tablet would stop connecting, and those users cannot
-troubleshoot.
+**Minimum TLS is 1.2.** Safe for the audience despite the old-iPad concern: Safari on iOS
+has supported TLS 1.2 since iOS 5 (2011), so any iPad capable of running this app
+negotiates it. The "old device" risk for TLS 1.2 is old Android and desktop IE, not iPads.
 
-Applying 1–3 needs `Zone Settings: Edit` on the API token; the current token is DNS-only
-(see the memory note / `backend/.env`).
+**HSTS is deliberately still off.** It is the one setting here that is unpleasant to walk
+back — browsers honour the `max-age` regardless of what the server later says. If it is
+turned on, start with a short `max-age` and no `preload`.
+
+Changing these needs **`Zone Settings: Edit`** on the API token in `backend/.env`
+(currently: DNS Write, Zone Settings Write, Zone Read — scoped to this zone).
+
+Verifying after a change:
+
+```bash
+for s in ssl always_use_https min_tls_version; do
+  curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://api.cloudflare.com/client/v4/zones/$ZONE/settings/$s"
+done
+curl -sI http://marcusthelegend.com | head -1   # expect 301
+```
+
+Note that a certificate failure under Full (strict) surfaces as a **526**, not a 404 —
+`pay.marcusthelegend.com` returning its origin's 404 is a pass, not a symptom.
 
 ### The tailnet path bypasses all of this
 
