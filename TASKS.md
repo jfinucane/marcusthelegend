@@ -105,8 +105,13 @@ also resolved P11: `marcusthelegend.com` serves the app directly, no redirect.
 - [ ] Delete the disabled redirect rule outright — cosmetic; it currently doubles as a
   documented rollback lever. Needs `Zone > Dynamic Redirect` on the API token (current
   token is DNS-only, expires 2027-07-27) or a dashboard visit.
-- [ ] Review Cloudflare SSL/TLS mode and proxied-record security (hides the home IP;
-  consider WAF / rate-limit rules — overlaps P6 cost controls).
+- [ ] Apply the TLS recommendations in
+  **[docs/networking.md](docs/networking.md#tls-posture--findings-and-recommendations)**
+  (audited 2026-07-27, nothing changed yet): Always Use HTTPS **on** — `http://` currently
+  serves the app in the clear; SSL/TLS mode `flexible` → **Full (strict)** for the `pay`
+  record; min TLS `1.0` → **1.2**. Needs `Zone Settings: Edit` on the token.
+- [ ] Note for P6: the tailnet path bypasses Cloudflare entirely, so WAF / rate limits
+  must live in **nginx or the app**, not at the edge, to cover both entry points.
 
 ---
 

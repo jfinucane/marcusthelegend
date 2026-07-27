@@ -158,3 +158,48 @@ port. See `TASKS.md` P4.
 - The known **Vite HMR WebSocket failure through Tailscale** only affects the dev stack.
   Cloudflare Tunnel proxies WebSockets properly, so serving a dev environment through
   the tunnel may sidestep it — untested.
+
+## TLS posture — findings and recommendations
+
+Audited **2026-07-27**. Nothing here has been changed; these are open recommendations
+(`TASKS.md` P11).
+
+| Setting | Current | Recommend |
+|---------|---------|-----------|
+| SSL/TLS mode | `flexible` | **Full (strict)** |
+| Always Use HTTPS | `off` | **On** |
+| Minimum TLS version | `1.0` | **1.2** |
+| HSTS | disabled | Later, short `max-age` first |
+
+**SSL/TLS mode** controls how Cloudflare's edge reaches the origin. *Flexible* means the
+edge serves HTTPS to the visitor but fetches from the origin over cleartext HTTP.
+
+For the app this is **moot**: tunnel-backed hostnames don't use that setting, because
+cloudflared holds an encrypted connection to the edge and its hop to nginx never leaves
+the box. It does affect **`pay.marcusthelegend.com`**, a proxied CNAME to GoDaddy — that
+leg crosses the internet, and under *Flexible* Cloudflare fetches it in the clear. It is
+a payments link, so this is the part worth fixing. Switching to Full (strict) does not
+affect the tunnel hostnames.
+
+**Always Use HTTPS is off**, which is the live exposure: `http://marcusthelegend.com`
+currently returns the whole app over unencrypted HTTP, login POST included. Enabling it
+makes Cloudflare 301 to HTTPS. This is safe with respect to the cached-redirect problem
+above — it is a scheme upgrade landing on a working page, not a hostname change, so it
+cannot loop.
+
+**Minimum TLS 1.0 → 1.2** is ordinary hygiene, but weigh it against the audience: a
+pre-2013 browser on an old tablet would stop connecting, and those users cannot
+troubleshoot.
+
+Applying 1–3 needs `Zone Settings: Edit` on the API token; the current token is DNS-only
+(see the memory note / `backend/.env`).
+
+### The tailnet path bypasses all of this
+
+Tailscale Funnel terminates TLS with its own certificate and goes straight to nginx.
+**No Cloudflare setting, WAF rule, or rate limit applies to it** — and that is the path
+existing users are on.
+
+This matters for **P6 (cost controls)**: rate limiting Gemini and Kokoro at Cloudflare's
+edge would leave the tailnet path completely unthrottled. Those limits belong in
+**nginx or the app**, where both entry points converge.
