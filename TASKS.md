@@ -51,21 +51,23 @@ Enables direct DNS edits via the Cloudflare REST API (no MCP server needed).
 - [ ] Stop hardcoding `FLASK_ENV: development` in compose; drive it from the environment.
 - [ ] Separate frontend build config for dev vs prod (API base URL, etc.).
 
-### P5 — Deployment pattern  *(decided: a real reverse proxy on the box)*
-Put a production reverse proxy (nginx or Caddy) in front of the app as the single public
-entry point, replacing the Vite dev server as origin. This also resolves the P11
-redirect-vs-proxy question — Cloudflare/Funnel can point at the proxy and serve the app
-under `marcusthelegend.com` directly.
-- [ ] Add an `nginx`/`caddy` service to Compose as the public entry; add its config
-  (`nginx.conf` / `Caddyfile`): serve the built frontend and `proxy_pass /api` + `/static`
-  → Flask.
-- [ ] Build the frontend for production (`npm run build`) and serve the static `dist/`
-  from the proxy instead of `npm run dev`.
-- [ ] Serve the backend with a production WSGI server (gunicorn) instead of the Flask dev
-  server.
-- [ ] Repoint **Tailscale Funnel** (or a Cloudflare Tunnel) at the proxy's port instead
-  of `:5173`.
-- [ ] Add a `docker-compose.prod.yml` (or override) documenting the deploy topology.
+### P5 — Deployment pattern  *(done — see `docs/networking.md`)*
+A production reverse proxy now fronts the app as the single origin, replacing the Vite
+dev server. Public ingress moved from Tailscale Funnel to a **Cloudflare Tunnel**, which
+also resolved P11: `marcusthelegend.com` serves the app directly, no redirect.
+- [x] Add an `nginx` service to Compose as the public entry, with config
+  (`nginx/conf.d/marcusthelegend.conf`): serves the built frontend, `/static/images`
+  straight off the bind mount, and `proxy_pass /api` + `/static` → Flask.
+- [x] Build the frontend for production (`npm run build`, multi-stage in
+  `nginx/Dockerfile`) and serve the static `dist/` from the proxy.
+- [x] Serve the backend with gunicorn (`backend/start-prod.sh`, 2 workers × 8 threads)
+  instead of the Flask dev server.
+- [x] Public ingress is a **Cloudflare Tunnel** (`cloudflared/config.yml`). Tailscale
+  Funnel was repointed at nginx and **stays** as a permanent second entry point —
+  existing users have the tailnet URL bookmarked.
+- [x] Add `docker-compose.prod.yml` documenting the deploy topology.
+- [ ] Fold `tailscale funnel status` into the health checks — `tailscaled` is now a
+  production dependency.
 
 ### P6 — Cost controls
 - [ ] Add rate limiting / per-user quotas on the expensive calls: Gemini image gen,
@@ -93,14 +95,16 @@ under `marcusthelegend.com` directly.
 - [x] Fix `www` — was NXDOMAIN on IPv4; added a proxied `CNAME www →
   spark-b0aa.taileb1e78.ts.net` (mirrors the apex). Verified: resolves on IPv4 and 301s
   to the Funnel → app. The redirect rule already covers `www`.
-- [ ] Audit the zone: apex proxied `CNAME → …ts.net` Funnel, `api` / `api-staging-env`
-  A records, `pay` (GoDaddy commerce), `_domainconnect` (GoDaddy helper — remove if unused).
-- [ ] **Decide redirect vs. proxy.** Confirmed: apex + `www` both 301-redirect to the
-  Funnel URL, so the browser address bar shows `…ts.net`, not `marcusthelegend.com`. To
-  keep the vanity URL, switch from the Cloudflare **redirect Rule** to transparent
-  proxying (dashboard change — needs a token with Rules access, current token is DNS-only)
-  or resolve it via the P5 reverse proxy. No action if the redirect is acceptable.
-- [ ] Tie the `api` / `api-staging-env` hosts into the P4 multi-environment work.
+- [x] Audit the zone. The `api` / `api-staging-env` A records no longer exist. Remaining:
+  apex + `www` (now Tunnel CNAMEs), `pay` (GoDaddy commerce), `_domainconnect` (GoDaddy
+  helper — still unused, remove if you're sure).
+- [x] **Decided: proxy, not redirect.** The zone-wide Redirect Rule ("Redirect to tailnet
+  for marcus", matching *all* incoming requests) is **disabled** — it would also have
+  broken `dev.*` later. Apex and `www` now serve the app through the Cloudflare Tunnel
+  and the address bar keeps `marcusthelegend.com`.
+- [ ] Delete the disabled redirect rule outright — cosmetic; it currently doubles as a
+  documented rollback lever. Needs `Zone > Dynamic Redirect` on the API token (current
+  token is DNS-only, expires 2027-07-27) or a dashboard visit.
 - [ ] Review Cloudflare SSL/TLS mode and proxied-record security (hides the home IP;
   consider WAF / rate-limit rules — overlaps P6 cost controls).
 

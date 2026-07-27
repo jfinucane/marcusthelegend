@@ -1,0 +1,51 @@
+# Production topology: Cloudflare Tunnel -> nginx -> gunicorn/Flask.
+#
+#   docker compose -f docker-compose.prod.yml up --build -d
+#
+# Deliberately a standalone file rather than an override of docker-compose.yml:
+# the two stacks differ in almost every service (built SPA vs Vite dev server,
+# gunicorn vs the Flask dev server) and can be run one at a time on this box.
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ['bash', 'start-prod.sh']
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      FLASK_ENV: production
+    volumes:
+      - ./backend/static/images:/app/static/images
+    # PostgreSQL and the TTS services are on the host, reached via localhost.
+    network_mode: host
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    restart: unless-stopped
+    ports:
+      # Loopback only — the public path is the tunnel, not this port.
+      - '127.0.0.1:8080:80'
+    volumes:
+      - ./backend/static/images:/srv/images:ro
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      - backend
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    # The credentials file is 0400 and owned by the host user, so run as them
+    # rather than the image's default UID 65532.
+    user: '${DOCKER_UID:-1000}:${DOCKER_GID:-1000}'
+    command: ['tunnel', '--no-autoupdate', '--config', '/etc/cloudflared/config.yml', 'run']
+    volumes:
+      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      # Tunnel credentials live outside the repo and are never committed.
+      - ${HOME}/.cloudflared:/etc/cloudflared/creds:ro
+    depends_on:
+      - nginx
