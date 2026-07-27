@@ -1,0 +1,14 @@
+.git
+.gitignore
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+.env
+**/.env
+backend/static/images
+backend/instance
+flask.log
+*.log
+.pytest_cache
+docs

@@ -1,0 +1,16 @@
+# Cloudflare Tunnel ingress for the DGX.
+#
+# Every public hostname is handed to nginx unchanged; nginx does the real
+# routing by Host header (see nginx/conf.d/). Adding an environment is one
+# hostname here plus one nginx server block.
+tunnel: marcus
+credentials-file: /etc/cloudflared/creds/5c4b5351-19f3-45a1-9e11-f5044537353f.json
+
+# No inbound port is opened on the router: cloudflared dials out to Cloudflare.
+ingress:
+  - hostname: marcusthelegend.com
+    service: http://nginx:80
+  - hostname: www.marcusthelegend.com
+    service: http://nginx:80
+  # Future: dev.marcusthelegend.com -> http://nginx:80 (nginx splits by Host)
+  - service: http_status:404

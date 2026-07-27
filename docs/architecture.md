@@ -27,7 +27,9 @@ narration.
 1. The **React SPA** (Vite dev server on `:5173`) calls the API through relative paths
    (`/api/...`, `/static/...`). In development the Vite server **proxies** those to the
    Flask backend (`vite.config.js` → `host.docker.internal:5000`), so the browser sees
-   a single origin and there is no CORS or base-URL juggling in the client.
+   a single origin and there is no CORS or base-URL juggling in the client. In
+   production the same relative paths are served by nginx instead — see
+   [networking.md](networking.md).
 2. **Flask** (`backend/app/__init__.py`) is an app-factory app. Each domain lives in its
    own blueprint under `app/routes/`: `worlds`, `stories`, `items`, `entities`, `tts`,
    `auth`, `image_buckets`.
@@ -41,48 +43,14 @@ narration.
 > `DATABASE_URL` points at `localhost:5432` — i.e. PostgreSQL runs on the **host**, not
 > in Compose. The frontend container reaches the backend via `host.docker.internal`.
 
-## Public access — how `marcusthelegend.com` reaches the DGX
+## Public access
 
-The app runs entirely on a headless DGX Spark on a home network — there is no cloud
-host and no open inbound port on the router. Public traffic reaches it through a chain
-of three services:
+In production the app is fronted by **nginx** and reached over a **Cloudflare Tunnel**,
+so `marcusthelegend.com` serves the app directly with no redirect. The request flow
+above describes the **development** stack, where the Vite dev server proxies to Flask.
 
-```
-Visitor → https://marcusthelegend.com
-   │   registrar: GoDaddy  (domain only; nameservers delegated to Cloudflare)
-   ▼
-Cloudflare  — authoritative DNS (gordon/teagan.ns.cloudflare.com) + edge TLS
-   │   apex is a proxied CNAME → the Funnel host; the edge 301s to the Funnel URL
-   ▼
-https://spark-b0aa.taileb1e78.ts.net/   — Tailscale Funnel (public ingress)
-   │   proxies to
-   ▼
-127.0.0.1:5173  — Vite (frontend) on the DGX
-   │   /api and /static are proxied on to
-   ▼
-Flask :5000  →  PostgreSQL + Gemini + Kokoro
-```
-
-1. **GoDaddy** is the domain **registrar**. It does not serve the app's DNS — the
-   nameservers are pointed at Cloudflare.
-2. **Cloudflare** is the authoritative **DNS** and TLS edge. The apex
-   `marcusthelegend.com` is a **Cloudflare-proxied `CNAME` to
-   `spark-b0aa.taileb1e78.ts.net`** (the Funnel host). Because a `CNAME` isn't allowed at
-   a zone apex, Cloudflare **flattens** it to A records — which is why the root resolves
-   to Cloudflare's anycast IPs. At the edge, a request to the domain is answered with a
-   **301 redirect to `https://spark-b0aa.taileb1e78.ts.net/`**. (Because it's a redirect,
-   the browser's address bar ends up showing the `…ts.net` URL — which is why both
-   hostnames are listed in `vite.config.js` → `server.allowedHosts`.)
-3. **Tailscale Funnel** is the actual public ingress. `tailscale funnel` exposes
-   `https://spark-b0aa.taileb1e78.ts.net` to the internet over Tailscale's relays — no
-   router port-forwarding required — and proxies it to the Vite dev server on
-   `127.0.0.1:5173`. TLS for the Funnel hostname is a Tailscale-issued cert.
-4. **Vite** serves the SPA and proxies `/api` + `/static` to Flask, as in the request
-   flow above.
-
-> **Where each piece is configured:** domain registration → GoDaddy; DNS records +
-> redirect rule → the **Cloudflare** dashboard (not GoDaddy); public ingress →
-> `tailscale funnel` on the DGX (`tailscale funnel status` shows the `:5173` mapping).
+See **[networking.md](networking.md)** for the full chain, the production compose
+stack, tunnel credentials and admin commands, and how to add an environment.
 
 ## Data model
 
@@ -201,5 +169,7 @@ decoupled from the app.
 ## Related docs
 
 - **[../README.md](../README.md)** — overview, screenshots, quickstart.
+- **[Networking & deployment](networking.md)** — Cloudflare Tunnel, nginx, gunicorn, the
+  production compose stack, and how to add an environment.
 - **[API reference](api.md)** — _stubbed pending the authentication work; see
   [../TASKS.md](../TASKS.md)._
