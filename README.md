@@ -28,6 +28,9 @@ building illustrated stories with generative AI. You create a **World**, fill it
 language and the app generates the artwork with Google **Gemini**, then narrates it
 with a local **text-to-speech** stack.
 
+It is built for **kids aged 10–12, working on iPads** — so the app is touch-first, and
+the people using it can't be walked through a cache clear or asked to check a console.
+
 The interesting part is **consistency**. Each story runs a *stateful* Gemini chat
 session that remembers your characters and previous panels, so "Bella" looks like the
 same dog in panel six as she did in panel one — and you can keep editing panels

@@ -31,6 +31,21 @@ full picture — this file covers only what you need to work in the repo safely.
 - `backend/migrations/` — Alembic (Flask-Migrate)
 - `frontend/src/{pages,components,api.js}`
 
+## Who uses this
+
+**Children aged 10–12, on iPads.** Not developers, and not you. This constrains real
+decisions:
+
+- **Safari on iOS is the target browser.** Desktop Chrome passing proves less than it
+  looks; touch behaviour differs (the scene editor's `@hello-pangea/dnd` drag-and-drop
+  especially). Old iPads pin the floor for TLS versions and JS/build targets.
+- **They cannot self-diagnose.** No cache clearing, no DevTools, no precise bug reports.
+  Prefer changes that fail *safe* over changes that fail *loudly*, and never remove an
+  entry point they might have bookmarked — see `docs/networking.md` on why the
+  `…ts.net` URL must keep working.
+- **AI output is going to kids.** Treat safety filtering and moderation of generated
+  images and narration as a requirement, not a nice-to-have (TASKS.md P7).
+
 ## Conventions & gotchas
 
 - **Gemini model** is `gemini-3.1-flash-image-preview`, referenced in
