@@ -122,6 +122,15 @@ source. Findings and suggested fixes are in
   quotas on the authenticated user rather than IP.
 - [ ] Apply the remaining doc corrections listed in that file.
 
+### P13 — Retire the tailnet entry point  *(added — revisit 2026-08-14)*
+The requirement to keep serving `spark-b0aa.taileb1e78.ts.net` closes around
+**2026-08-14**. Background: `docs/networking.md` → *History / gotchas*.
+
+- [ ] Retire it by handing users a **fresh link** (e.g. `?m=1`) — never an HTTP redirect
+  from the `…ts.net` host, which would loop against cached 301s.
+- [ ] Then revisit what it unblocks: **P6** (edge rate limiting becomes viable again),
+  the P12 `CF-Connecting-IP` item, and the P5 `tailscale funnel status` health check.
+
 ---
 
 ## In Progress
