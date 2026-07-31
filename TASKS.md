@@ -114,31 +114,13 @@ also resolved P11: `marcusthelegend.com` serves the app directly, no redirect.
   must live in **nginx or the app**, not at the edge, to cover both entry points.
 
 ### P12 — Documentation cleanup  *(added)*
-Findings from a full review of `docs/networking.md` and `docs/architecture.md` against
-the actual config and source, written up in
-**[docs/documentation-issues.md](docs/documentation-issues.md)**. Both docs are in good
-shape; these are the exceptions.
+Review of `docs/networking.md` and `docs/architecture.md` against the actual config and
+source. Findings and suggested fixes are in
+**[docs/documentation-issues.md](docs/documentation-issues.md)**.
 
-- [ ] **Fix the `CF-Connecting-IP` trust boundary.** nginx trusts all of RFC1918 as a
-  real-IP source, so the tailnet path can spoof the header — and with the header absent,
-  every tailnet user logs as the same gateway IP. Narrow `set_real_ip_from` to the
-  cloudflared container (or split the entry points by `listen` port), then correct the
-  *Client IPs and access logs* section, which currently claims the real visitor IP is
-  logged. **Blocks P6:** IP-keyed quotas would be spoofable and would bucket all tailnet
-  users together — key them on the authenticated user instead.
-- [ ] `networking.md` says the tunnel "forwards every hostname"; `cloudflared/config.yml`
-  declares apex + `www` and 404s the rest. Say "each **declared** hostname".
-- [ ] The HSTS note omits **`includeSubDomains`**, the flag that would force HTTPS onto
-  `pay.marcusthelegend.com` (GoDaddy origin, cert not ours). Add it to the warning.
-- [ ] `architecture.md` states unconditionally that Flask serves `/static/images/`; in
-  production nginx serves it off the bind mount. Qualify the bullet and the diagram.
-- [ ] Document the existing nginx `/healthz`, and note in **P3** that it is a static 200
-  proving only that nginx is up — it passes with gunicorn and Postgres both down.
-- [ ] Smaller `architecture.md` fixes: add `ImageGenerationLog` to the data model; the
-  `TimestampMixin` claim overreaches (`User` and `ImageGenerationLog` lack it).
-- [ ] Give `image_service.py` a `GEMINI_MODEL` constant — the model string is hardcoded
-  three times there, and `CLAUDE.md` already claims the constant exists. Fix the code to
-  match the docs rather than the reverse.
+- [ ] Fix the `CF-Connecting-IP` trust boundary in nginx — **blocks P6**, which must key
+  quotas on the authenticated user rather than IP.
+- [ ] Apply the remaining doc corrections listed in that file.
 
 ---
 
