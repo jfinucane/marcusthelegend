@@ -113,6 +113,15 @@ also resolved P11: `marcusthelegend.com` serves the app directly, no redirect.
 - [ ] Note for P6: the tailnet path bypasses Cloudflare entirely, so WAF / rate limits
   must live in **nginx or the app**, not at the edge, to cover both entry points.
 
+### P12 — Documentation cleanup  *(added)*
+Review of `docs/networking.md` and `docs/architecture.md` against the actual config and
+source. Findings and suggested fixes are in
+**[docs/documentation-issues.md](docs/documentation-issues.md)**.
+
+- [ ] Fix the `CF-Connecting-IP` trust boundary in nginx — **blocks P6**, which must key
+  quotas on the authenticated user rather than IP.
+- [ ] Apply the remaining doc corrections listed in that file.
+
 ---
 
 ## In Progress
