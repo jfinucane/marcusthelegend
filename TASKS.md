@@ -131,6 +131,28 @@ The requirement to keep serving `spark-b0aa.taileb1e78.ts.net` closes around
 - [ ] Then revisit what it unblocks: **P6** (edge rate limiting becomes viable again),
   the P12 `CF-Connecting-IP` item, and the P5 `tailscale funnel status` health check.
 
+### P14 — API-shaped scanner probes get past the P12 WAF rule  *(added 2026-08-18)*
+The WAF rule deployed in #32 (`scripts/cloudflare_waf_rule.sh`) blocks the WordPress
+/ PHP family — `.php`, `/wp-`, `xmlrpc`, `/.env`, `/.git`, `/actuator/`. Seven days of
+nginx logs show a **second, uncovered family** still reaching the origin: `/api/secrets`,
+`/api/env`, `/api/credentials`, `/api/appsettings`, `/api/terraform`, `/api/webhooks`.
+These are API config-discovery probes, and the existing expression misses them because
+`contains "/.env"` does not match `/api/env`. Volume is low (single digits/week vs the
+13,637 that prompted #32), so this is hygiene, not an incident.
+
+- [ ] Confirm none of those paths return 200 before blocking anything. **`/api/auth` is
+  a real route prefix** — a `contains "/api/auth"` term would break login. `/api/config`
+  and `/api/v` also appear in the logs and may be genuine; check before adding terms.
+- [ ] Extend `EXPRESSION` in `scripts/cloudflare_waf_rule.sh` (the script is idempotent
+  and merges into the existing ruleset — do not add these by hand in the dashboard).
+  Keep using `contains`, not `matches`: this zone is on Free.
+- [ ] Re-verify against all real app routes with zero matches, as #32 did, before deploy.
+- [ ] **The tailnet entry point bypasses Cloudflare entirely**, so no WAF rule covers
+  traffic arriving via `spark-b0aa.taileb1e78.ts.net`. Worth confirming whether these
+  probes came in that way — if so this is really an argument for **P13**, not a rule edit.
+- [ ] Revisit once **P12**'s `CF-Connecting-IP` trust boundary is fixed — until then
+  the logged client IPs can't be trusted for rate limiting or blocklists.
+
 ---
 
 ## In Progress

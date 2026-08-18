@@ -13,9 +13,12 @@ import os
 import psycopg
 
 DB_URL = os.environ['DATABASE_URL'].replace('postgresql+psycopg://', 'postgresql://')
-LLM_URL = 'http://localhost:8000/v1/chat/completions'
-LLM_MODEL = 'Nemotron-3-Nano-30B-A3B-Q8_0.gguf'
-# Magpie TTS doesn't read numbers well, so pre-convert digits to spoken words before TTS
+LLM_URL = 'http://localhost:11434/api/generate'
+LLM_MODEL = 'gemma4:26b'
+# This script is a separate process, so it is NOT covered by the in-process
+# _ollama_lock in app/dialogue_extractor.py. Run it while the app is idle, or it
+# will contend with the dialogue sweep for the single GPU model.
+# Kokoro TTS doesn't read numbers well, so pre-convert digits to spoken words before TTS
 TRANSLATE_PROMPT = (
     'Please translate numbers to the equivalent words as a speaker would, '
     'for example 1970 is nineteen seventy, and otherwise leave the text as is. '
@@ -26,9 +29,8 @@ TRANSLATE_PROMPT = (
 def translate(text: str) -> str:
     payload = json.dumps({
         'model': LLM_MODEL,
-        'messages': [{'role': 'user', 'content': f'{TRANSLATE_PROMPT}\n\n{text}'}],
-        'max_tokens': 2000,
-        'temperature': 0.3,
+        'prompt': f'{TRANSLATE_PROMPT}\n\n{text}',
+        'stream': False,
     }).encode()
     req = urllib.request.Request(
         LLM_URL,
@@ -38,7 +40,7 @@ def translate(text: str) -> str:
     )
     with urllib.request.urlopen(req, timeout=120) as resp:
         result = json.loads(resp.read())
-    return result['choices'][0]['message'].get('content', '').strip()
+    return result['response'].strip()
 
 
 def main():

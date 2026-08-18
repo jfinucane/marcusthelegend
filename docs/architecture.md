@@ -149,13 +149,13 @@ Narration is a thin proxy layer over several OpenAI-compatible speech/LLM endpoi
 
 | Endpoint | Upstream | Purpose |
 |----------|----------|---------|
-| `POST /api/tts` | Magpie (`:8001`) | Voice synthesis; returns raw PCM wrapped into a WAV. |
 | `POST /api/stories/<id>/kokoro-tts` | Kokoro FastAPI (GPU, `spark-b0aa:8880`) | Per-story narration in the story's `kokoro_voice`. |
-| `POST /api/translate` | Local LLM (Nemotron, `:8000`) | Normalizes text for speech (numbers → words). |
+| `POST /api/translate` | Ollama (`gemma4:26b`, `:11434`) | Normalizes text for speech (numbers → words). |
 
-The backend does light glue work — e.g. `pcm_to_wav()` hand-builds a RIFF/WAVE header
-around Magpie's raw PCM — and otherwise forwards requests, keeping the model services
-decoupled from the app.
+The backend forwards requests and otherwise stays out of the way, keeping the model
+services decoupled from the app. `/api/translate` shares one model with the dialogue
+extractor, so it goes through `ollama_generate()` in `app/dialogue_extractor.py` —
+the single lock-serialized entry point for all Ollama access.
 
 ## Frontend structure
 

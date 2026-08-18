@@ -66,6 +66,5 @@ separately at `/static/images/<uuid>.<ext>`.
 
 | Method | Path | Notes |
 |--------|------|-------|
-| POST | `/api/tts` | Magpie voice synthesis → WAV. |
-| POST | `/api/translate` | LLM text normalization for narration. |
+| POST | `/api/translate` | Ollama (`gemma4:26b`) text normalization for narration. |
 | GET | `/api/image-buckets` | Reference image buckets. |
