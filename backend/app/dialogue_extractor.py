@@ -21,9 +21,10 @@ OLLAMA_MODEL = "gemma4:26b"
 # Give up on an item after this many failed extraction attempts (dead-letter).
 MAX_ATTEMPTS = 3
 
-# Serializes every Ollama call — the sweep loop AND the image_service fallback —
-# so concurrent callers can't pile up on the single-GPU model and blow past the
-# request timeout while queued. All Ollama access must go through _extract_pairs.
+# Serializes every Ollama call — the sweep loop, the image_service fallback, and
+# the /api/translate normalizer in routes/tts.py — so concurrent callers can't pile
+# up on the single-GPU model and blow past the request timeout while queued.
+# All Ollama access must go through ollama_generate.
 _ollama_lock = threading.Lock()
 
 # Single-flights the full-table sweep: a trigger that arrives while a sweep is
@@ -39,10 +40,14 @@ EXTRACT_PROMPT_PREFIX = (
 )
 
 
-def _extract_pairs(description: str) -> list[dict]:
+def ollama_generate(prompt: str, timeout: int = 180) -> str:
+    """Single entry point for every Ollama call, serialized by _ollama_lock.
+
+    Returns the model's raw response text. Callers do their own parsing.
+    """
     payload = json.dumps({
         "model": OLLAMA_MODEL,
-        "prompt": EXTRACT_PROMPT_PREFIX + description,
+        "prompt": prompt,
         "stream": False,
     }).encode()
     req = urllib.request.Request(
@@ -52,8 +57,12 @@ def _extract_pairs(description: str) -> list[dict]:
         method="POST",
     )
     with _ollama_lock:
-        with urllib.request.urlopen(req, timeout=180) as resp:
-            raw = json.loads(resp.read())["response"].strip()
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read())["response"].strip()
+
+
+def _extract_pairs(description: str) -> list[dict]:
+    raw = ollama_generate(EXTRACT_PROMPT_PREFIX + description)
 
     # Strip markdown code fences if present
     lines = raw.splitlines()
