@@ -122,36 +122,63 @@ source. Findings and suggested fixes are in
   quotas on the authenticated user rather than IP.
 - [ ] Apply the remaining doc corrections listed in that file.
 
-### P13 — Retire the tailnet entry point  *(added — revisit 2026-08-14)*
-The requirement to keep serving `spark-b0aa.taileb1e78.ts.net` closes around
+### P13 — Retire the tailnet entry point  *(added — revisit 2026-08-14; now overdue)*
+The requirement to keep serving `spark-b0aa.taileb1e78.ts.net` closed around
 **2026-08-14**. Background: `docs/networking.md` → *History / gotchas*.
 
 - [ ] Retire it by handing users a **fresh link** (e.g. `?m=1`) — never an HTTP redirect
   from the `…ts.net` host, which would loop against cached 301s.
 - [ ] Then revisit what it unblocks: **P6** (edge rate limiting becomes viable again),
   the P12 `CF-Connecting-IP` item, and the P5 `tailscale funnel status` health check.
+- Evidence (2026-08-27): the tailnet carried **1,522 origin requests in 21 days**, of
+  which **58 were scanner probes no WAF rule can see** — `/.git/config` ×12, `/.env` ×8,
+  `/wp-login.php` ×4. Small, but it is the only hole left in the edge block. See
+  [`docs/traffic_history/week_ending_2026-08-25.md`](docs/traffic_history/week_ending_2026-08-25.md).
 
-### P14 — API-shaped scanner probes get past the P12 WAF rule  *(added 2026-08-18)*
+### P14 — API-shaped scanner probes get past the WAF rule  *(added 2026-08-18 — deployed 2026-09-02; one gap open)*
 The WAF rule deployed in #32 (`scripts/cloudflare_waf_rule.sh`) blocks the WordPress
-/ PHP family — `.php`, `/wp-`, `xmlrpc`, `/.env`, `/.git`, `/actuator/`. Seven days of
-nginx logs show a **second, uncovered family** still reaching the origin: `/api/secrets`,
-`/api/env`, `/api/credentials`, `/api/appsettings`, `/api/terraform`, `/api/webhooks`.
-These are API config-discovery probes, and the existing expression misses them because
-`contains "/.env"` does not match `/api/env`. Volume is low (single digits/week vs the
-13,637 that prompted #32), so this is hygiene, not an incident.
+/ PHP family — `.php`, `/wp-`, `xmlrpc`, `/.env`, `/.git`, `/actuator/`. Its terms were
+written with a leading slash, which anchors them harder than intended and leaves two
+families uncovered: `/api/secrets`-style config discovery, and named dotfiles like
+`/sendgrid.env` (`contains "/.env"` matches neither). Volume is low, so this is hygiene,
+not an incident.
 
-- [ ] Confirm none of those paths return 200 before blocking anything. **`/api/auth` is
-  a real route prefix** — a `contains "/api/auth"` term would break login. `/api/config`
-  and `/api/v` also appear in the logs and may be genuine; check before adding terms.
-- [ ] Extend `EXPRESSION` in `scripts/cloudflare_waf_rule.sh` (the script is idempotent
-  and merges into the existing ruleset — do not add these by hand in the dashboard).
-  Keep using `contains`, not `matches`: this zone is on Free.
-- [ ] Re-verify against all real app routes with zero matches, as #32 did, before deploy.
-- [ ] **The tailnet entry point bypasses Cloudflare entirely**, so no WAF rule covers
-  traffic arriving via `spark-b0aa.taileb1e78.ts.net`. Worth confirming whether these
-  probes came in that way — if so this is really an argument for **P13**, not a rule edit.
+Findings and numbers: [`docs/traffic_history/week_ending_2026-08-25.md`](docs/traffic_history/week_ending_2026-08-25.md).
+
+- [x] Confirm none of those paths return 200 before blocking anything. **523 requests
+  across 226 distinct paths, every one a 404.** `/api/auth` is a real route prefix and
+  stays out of the term list; `/api/config`, `/api/v1/`, `/api/v2/` are not used by this
+  app and are safe to block.
+- [x] Extend `EXPRESSION` in `scripts/cloudflare_waf_rule.sh`. Still `contains`-only
+  (Free plan). Terms are now unanchored (`php`, `.env`, `.git`, `actuator`) plus a
+  config/secret family and a list of file extensions the app never serves. 36 terms,
+  2,326 chars against Cloudflare's 4,096 limit.
+- [x] Guard the widened terms with `and not … contains "/assets/"` — Vite names chunks
+  after their source module, so a future `frontend/src/config.js` would otherwise be
+  blocked as `/assets/config-<hash>.js`.
+- [x] Re-verify against all real app routes with zero matches, as #32 did.
+  `scripts/verify_waf_expression.py` now does this from the expression the deploy script
+  actually emits: **51 real routes, 0 matched; 36,065 logged requests replayed, 19,805
+  probes blocked (up from 12,310), 0 real app requests blocked.**
+- [x] Confirm whether the probes arrived over the tailnet. **They did not** — all 523
+  came in via `marcusthelegend.com` / `www`, so extending the WAF rule is the right fix
+  and this is not an argument for P13.
+- [x] **Deploy:** run 2026-09-02. One rule live, expression byte-identical to
+  `--dry-run`; the #32 rule was replaced, not stacked. Smoke-tested against the live
+  site: real routes 200, probe paths 403, `/robots.txt` + `/sitemap.xml` still 200.
+  Previous ruleset backed up before the PUT.
+- [ ] **`/api/env` is still not blocked** (found by the post-deploy smoke test: 404, not
+  403). No `.env` term can match it — there is no dot. Needs either an anchored
+  `"/api/env"` term or a bare `"env"`, and `env` is risky unanchored (`/environment`,
+  `/seven`, `/eleven`). Deferred, not forgotten: 13 requests in 31 days, all 404.
+- [ ] Recheck ~2026-09-09 that real traffic is unaffected and the new families have
+  stopped reaching the origin. Baseline to compare against: 21,764 probes blocked and
+  10,897 non-app requests still reaching the origin across 4,446 paths, of which 402
+  are under `/api/` (`/api/graphql` ×42 leads).
 - [ ] Revisit once **P12**'s `CF-Connecting-IP` trust boundary is fixed — until then
-  the logged client IPs can't be trusted for rate limiting or blocklists.
+  the logged client IPs can't be trusted for rate limiting or blocklists. The residual
+  long tail (12,850 distinct one-off paths) is not addressable with `contains` terms at
+  all; it needs the per-client rate limiting in **P6**.
 
 ---
 
