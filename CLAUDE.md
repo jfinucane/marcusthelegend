@@ -32,11 +32,15 @@ docker inspect marcusthelegend-backend-1 \
   nginx/cloudflared behind as "orphans" — the site stays up and looks fine while
   serving live traffic from a development server. If you see an orphan-containers
   warning naming nginx or cloudflared, you are driving the wrong stack.
-- ⚠️ **`./start_marcus.sh` is dev-only and destructive if prod is live.** It hardcodes
-  `docker-compose.yml`, runs `down --remove-orphans` (which *deletes* the running
-  nginx and cloudflared containers, taking the public site down), and `fuser -k`s
-  port 5000 out from under the prod backend. Do not run it on this box while prod
-  is serving.
+- ⚠️ **`./start_marcus_deprecated.sh` is dev-only and destructive if prod is live.**
+  (Renamed from `start_marcus.sh` on 2026-10-01 to stop it being reached for by
+  reflex after a reboot — prod recovers on its own via `restart: unless-stopped`.)
+  It hardcodes `docker-compose.yml`, runs `down --remove-orphans` (which *deletes*
+  the running nginx and cloudflared containers, taking the public site down), and
+  `fuser -k`s port 5000 out from under the prod backend. Do not run it on this box
+  while prod is serving. It now guards itself: if it detects the prod stack it
+  refuses and exits 1 before touching anything, overridable only with an explicit
+  `ALLOW_PROD_TEARDOWN=1`.
 - Frontend changes reach production only by rebuilding the nginx image — the SPA is
   compiled into it by `nginx/Dockerfile` and copied to `/usr/share/nginx/html`.
   Editing `frontend/src/` alone changes nothing that prod serves.
