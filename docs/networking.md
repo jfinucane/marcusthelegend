@@ -99,7 +99,7 @@ cfd() {
   docker run --rm --user $(id -u):$(id -g) \
     -e HOME=/tmp -w /tmp/.cloudflared \
     -v ~/.cloudflared:/tmp/.cloudflared \
-    cloudflare/cloudflared:latest "$@"
+    cloudflare/cloudflared:2026.10.7 "$@"   # keep in step with docker-compose.prod.yml
 }
 
 cfd tunnel list

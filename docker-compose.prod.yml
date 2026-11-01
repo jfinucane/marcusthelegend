@@ -37,7 +37,10 @@ services:
       - backend
 
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    # Pinned: `:latest` is only resolved on first pull, so it silently froze at
+    # 2026.7.3 and missed the 2026-10 eMudhra CA fix (needs >= 2026.10.2).
+    # Bump deliberately; with --no-autoupdate nothing else will.
+    image: cloudflare/cloudflared:2026.10.7
     restart: unless-stopped
     # The credentials file is 0400 and owned by the host user, so run as them
     # rather than the image's default UID 65532.
